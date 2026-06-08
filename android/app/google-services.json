@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "1017608757014",
+    "project_id": "vanconnect-app",
+    "storage_bucket": "vanconnect-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1017608757014:android:3e4fee92c673542333ba37",
+        "android_client_info": {
+          "package_name": "com.example.vanconnect"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1017608757014-qbds8i7pm2uef7iu7sshi3qifibgof6s.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vanconnect",
+            "certificate_hash": "8d0329ec6d8a213d84006fba7c2798f31bb38974"
+          }
+        },
+        {
+          "client_id": "1017608757014-b5j545qo4m25tc9p83fctljqds98rod3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAZiQYGiXwszfl4rW5k8LQ_kxTMg0FFOYo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1017608757014-b5j545qo4m25tc9p83fctljqds98rod3.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "1017608757014-femrv5khcf0ecfej6e43tkacr8a7mlc0.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.vanconnect"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
