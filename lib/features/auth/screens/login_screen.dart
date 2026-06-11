@@ -41,7 +41,8 @@ class _LoginScreenState extends State<LoginScreen> {
       final dynamic googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
-        Navigator.pop(context);
+        // Garante o fechamento usando o rootNavigator se o usuário cancelar a gaveta do Google
+        Navigator.of(context, rootNavigator: true).pop();
         return;
       }
 
@@ -65,13 +66,14 @@ class _LoginScreenState extends State<LoginScreen> {
             .get();
 
         if (!mounted) return;
-        Navigator.pop(context); // Fecha o loading
+        
+        // FECHAMENTO SEGURO: Mata o diálogo roxo antes que a árvore mude de tela
+        Navigator.of(context, rootNavigator: true).pop(); 
 
         if (userDoc.exists) {
           Map<String, dynamic> dados = userDoc.data() as Map<String, dynamic>;
           String? perfil = dados['perfil'];
 
-          // VALIDAÇÃO ESTRITA DE PERFIL EXISTENTE MAS INCOMPLETO
           if (perfil == null || perfil.isEmpty) {
             Navigator.pushReplacement(
               context,
@@ -100,10 +102,7 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else {
-          // SE NÃO EXISTE DOCUMENTO: É 100% USUÁRIO NOVO COM PERSISTÊNCIA TARDIA
-          if (!mounted) return;
-
-          // Redireciona OBRIGATORIAMENTE para a escolha de perfil injetando os dados do Google
+          // SE NÃO EXISTE DOCUMENTO: É Usuário Novo (Persistência Tardia)
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -119,10 +118,16 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      Navigator.pop(context);
+      Navigator.of(context, rootNavigator: true).pop(); // Fecha o loading em caso de erro de rede
+      
+      String mensagemErro = 'Erro ao entrar com o Google: $e';
+      if (e is FirebaseAuthException && e.code == 'account-exists-with-different-credential') {
+        mensagemErro = 'Este e-mail já está cadastrado com senha tradicional. Faça login digitando seus dados.';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Erro ao entrar com o Google: $e'),
+          content: Text(mensagemErro),
           backgroundColor: Colors.red,
         ),
       );
@@ -140,9 +145,9 @@ class _LoginScreenState extends State<LoginScreen> {
       try {
         UserCredential userCredential = await FirebaseAuth.instance
             .signInWithEmailAndPassword(
-              email: _emailController.text.trim(),
-              password: _passwordController.text.trim(),
-            );
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
 
         String uid = userCredential.user!.uid;
 
@@ -152,14 +157,14 @@ class _LoginScreenState extends State<LoginScreen> {
             .get();
 
         if (!mounted) return;
-        Navigator.pop(context); // Fecha o loading
+        
+        // FECHAMENTO SEGURO: Fecha o loading tradicional do e-mail antes de mudar de rota
+        Navigator.of(context, rootNavigator: true).pop(); 
 
         if (docUsuario.exists) {
-          Map<String, dynamic> dados =
-              docUsuario.data() as Map<String, dynamic>;
+          Map<String, dynamic> dados = docUsuario.data() as Map<String, dynamic>;
           String? perfil = dados['perfil'];
 
-          // SE O PERFIL FOR NULO OU VAZIO POR E-MAIL: Manda escolher o perfil limpando o estado
           if (perfil == null || perfil.isEmpty) {
             Navigator.pushReplacement(
               context,
@@ -172,13 +177,15 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
             );
           } else if (perfil == 'motorista') {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Bem-vindo, Motorista!')),
+            );
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
                 builder: (context) => const HomeMotoristaScreen(),
               ),
             );
-            // Navigator.pushReplacementNamed(context, '/home_motorista');
           } else if (perfil == 'pai' || perfil == 'responsavel') {
             Navigator.pushReplacement(
               context,
@@ -188,7 +195,7 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else {
-          // Se existe no Auth mas não no Firestore (raro)
+          // Caso de contorno se o doc sumiu do Firestore
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -200,9 +207,9 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         }
-      } on FirebaseAuthException {
+      } on FirebaseAuthException catch (e) {
         if (!mounted) return;
-        Navigator.pop(context);
+        Navigator.of(context, rootNavigator: true).pop(); // Fecha o loading se errar a senha
 
         String mensajeErro = 'E-mail ou senha incorretos.';
         ScaffoldMessenger.of(context).showSnackBar(
@@ -210,12 +217,12 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       } catch (e) {
         if (!mounted) return;
-        Navigator.pop(context);
+        Navigator.of(context, rootNavigator: true).pop();
         print(e);
       }
     }
   }
-
+    
   Future<void> _recuperarSenha() async {
     String email = _emailController.text.trim();
 
