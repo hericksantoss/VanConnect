@@ -157,7 +157,7 @@ class _MeusPassageirosAbaState extends State<MeusPassageirosAba> {
               // =========================================================================
               if (pendentes.isNotEmpty) ...[
                 const Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12.0),
+                  padding: EdgeInsets.symmetric(vertical: 12.0),
                   child: Row(
                     children: [
                       Icon(
@@ -275,7 +275,7 @@ class _MeusPassageirosAbaState extends State<MeusPassageirosAba> {
               // SEÇÃO: PASSAGEIROS ATIVOS
               // =========================================================================
               const Padding(
-                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                padding: EdgeInsets.symmetric(vertical: 12.0),
                 child: Row(
                   children: [
                     Icon(

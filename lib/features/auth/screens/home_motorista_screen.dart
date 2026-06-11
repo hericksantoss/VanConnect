@@ -187,7 +187,7 @@ void _executarMudancaRota() {
                       Container(
                         padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: _emViagem ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                          color: _emViagem ? Colors.green.withValues(alpha: 0.1) : Colors.orange.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -242,7 +242,7 @@ void _executarMudancaRota() {
 
   @override
   Widget build(BuildContext context) {
-    final List<Widget> _abas = [
+    final List<Widget> abas = [
       _buildAbaPainel(),      // Aba 0: Painel do Motorista + Mapa
       const MeusPassageirosAba(), // ALTERADO AQUI Aba 1: Lista Real com Gestão de Autorizações do Firestore!
       const Center(child: Text('Minhas Rotas (Futura)')), // Aba 2
@@ -260,7 +260,7 @@ void _executarMudancaRota() {
         switchOutCurve: Curves.easeOut,
         child: KeyedSubtree(
           key: ValueKey<int>(_abaAtiva),
-          child: _abas[_abaAtiva],
+          child: abas[_abaAtiva],
         ),
       ),
 

@@ -207,7 +207,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
         }
-      } on FirebaseAuthException catch (e) {
+      } on FirebaseAuthException {
         if (!mounted) return;
         Navigator.of(context, rootNavigator: true).pop(); // Fecha o loading se errar a senha
 

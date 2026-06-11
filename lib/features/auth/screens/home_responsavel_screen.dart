@@ -14,7 +14,7 @@ class HomeResponsavelScreen extends StatefulWidget {
 
 class _HomeResponsavelScreenState extends State<HomeResponsavelScreen> {
   final TextEditingController _codigoController = TextEditingController();
-  bool _isMapaDesbloqueado = false;
+  final bool _isMapaDesbloqueado = false;
   int _abaAtiva = 0;
 
   // Controladores do Formulário do Filho
@@ -298,7 +298,7 @@ class _HomeResponsavelScreenState extends State<HomeResponsavelScreen> {
           ),
         ),
         if (!_isMapaDesbloqueado)
-          Container(color: Colors.black.withOpacity(0.15)),
+          Container(color: Colors.black.withValues(alpha: 0.15)),
 
         if (!_isMapaDesbloqueado)
           Center(
@@ -309,7 +309,7 @@ class _HomeResponsavelScreenState extends State<HomeResponsavelScreen> {
                 children: [
                   Card(
                     elevation: 12,
-                    color: Colors.white.withOpacity(0.96),
+                    color: Colors.white.withValues(alpha: 0.96),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
                     child: Padding(
                       padding: const EdgeInsets.all(24.0),
@@ -373,12 +373,12 @@ class _HomeResponsavelScreenState extends State<HomeResponsavelScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.lock_outline_rounded, size: 18, color: Colors.white.withOpacity(0.9)),
+                      Icon(Icons.lock_outline_rounded, size: 18, color: Colors.white.withValues(alpha: 0.9)),
                       const SizedBox(width: 8),
                       Text(
                         'Acesso seguro e restrito a responsáveis.',
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
                           shadows: const [Shadow(blurRadius: 4, color: Colors.black38, offset: Offset(0, 1))],
