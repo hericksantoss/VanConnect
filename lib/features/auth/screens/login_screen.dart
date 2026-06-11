@@ -1,4 +1,5 @@
 import 'package:VanConnect/features/auth/screens/escolha_perfil_page.dart';
+import 'package:VanConnect/features/auth/screens/home_motorista_screen.dart';
 import 'package:VanConnect/features/auth/screens/home_responsavel_screen.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -15,7 +16,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  // A chave global (Key) serve para o Flutter gerenciar o estado e validar o formulário
   final _formKey = GlobalKey<FormState>();
 
   final _emailController = TextEditingController();
@@ -30,7 +30,6 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   Future<void> _fazerLoginComGoogle() async {
-    // 1. Mostra o indicador de carregamento
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -38,7 +37,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     try {
-      // Forçamos o Dart a tratar o plugin como dinâmico para ignorar travas de versão do linter
       final dynamic googleSignIn = GoogleSignIn(scopes: ['email']);
       final dynamic googleUser = await googleSignIn.signIn();
 
@@ -48,37 +46,51 @@ class _LoginScreenState extends State<LoginScreen> {
       }
 
       final dynamic googleAuth = await googleUser.authentication;
-
-      // Extração segura dos tokens
       final String? accessToken = googleAuth.accessToken?.toString();
       final String? idToken = googleAuth.idToken?.toString();
 
-      // Criando a credencial do Firebase
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: accessToken,
         idToken: idToken,
       );
 
-      // 5. Faz o login no Firebase Auth
       UserCredential userCredential = await FirebaseAuth.instance
           .signInWithCredential(credential);
       User? user = userCredential.user;
 
       if (user != null) {
-        // 6. BUSCA NO FIRESTORE: O usuário já existe?
         DocumentSnapshot userDoc = await FirebaseFirestore.instance
             .collection('usuarios')
             .doc(user.uid)
             .get();
 
+        if (!mounted) return;
         Navigator.pop(context); // Fecha o loading
 
         if (userDoc.exists) {
           Map<String, dynamic> dados = userDoc.data() as Map<String, dynamic>;
-          String perfil = dados['perfil'] ?? 'responsavel';
+          String? perfil = dados['perfil'];
 
-          if (perfil == 'motorista') {
-            // Navigator.pushReplacementNamed(context, '/home_motorista');
+          // VALIDAÇÃO ESTRITA DE PERFIL EXISTENTE MAS INCOMPLETO
+          if (perfil == null || perfil.isEmpty) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EscolhaPerfilPage(
+                  uid: user.uid,
+                  email: user.email ?? '',
+                  nomeInicial: user.displayName ?? '',
+                  fotoUrl: user.photoURL ?? '',
+                ),
+              ),
+            );
+          } else if (perfil == 'motorista') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const HomeMotoristaScreen(),
+              ),
+            );
           } else {
             Navigator.pushReplacement(
               context,
@@ -88,31 +100,26 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else {
-          // USUÁRIO NOVO: Salva os dados básicos e deixa o perfil nulo para ele escolher
-          await FirebaseFirestore.instance
-              .collection('usuarios')
-              .doc(user.uid)
-              .set({
-                'nome': user.displayName ?? '',
-                'email': user.email ?? '',
-                'fotoUrl': user.photoURL ?? '',
-                'criadoEm': FieldValue.serverTimestamp(),
-                'perfil': null,
-              });
+          // SE NÃO EXISTE DOCUMENTO: É 100% USUÁRIO NOVO COM PERSISTÊNCIA TARDIA
+          if (!mounted) return;
 
-          // Navigator.pushReplacementNamed(context, '/escolher_perfil');
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Bem-vindo! Escolha seu tipo de conta para continuar.',
+          // Redireciona OBRIGATORIAMENTE para a escolha de perfil injetando os dados do Google
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EscolhaPerfilPage(
+                uid: user.uid,
+                email: user.email ?? '',
+                nomeInicial: user.displayName ?? '',
+                fotoUrl: user.photoURL ?? '',
               ),
             ),
           );
         }
       }
     } catch (e) {
-      Navigator.pop(context); // Fecha o loading se der erro
+      if (!mounted) return;
+      Navigator.pop(context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Erro ao entrar com o Google: $e'),
@@ -122,107 +129,8 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _fazerLogin() async {
-    // Mostra a barra de carregamento
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
-
-    try {
-      // 1. Tenta autenticar o utilizador no Firebase Auth
-      UserCredential userCredential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(
-            email: _emailController.text
-                .trim(), // Ajusta se o teu controller tiver outro nome
-            password: _passwordController.text
-                .trim(), // Ajusta se o teu controller tiver outro nome
-          );
-
-      String uid = userCredential.user!.uid;
-
-      // 2. Consulta o Firestore para descobrir quem é esta pessoa
-      DocumentSnapshot docUtilizador = await FirebaseFirestore.instance
-          .collection('utilizadores')
-          .doc(uid)
-          .get();
-
-      // Fecha o loading
-      Navigator.pop(context);
-
-      if (docUtilizador.exists) {
-        // 3. Extrai o perfil do documento
-        String perfil = docUtilizador.get('perfil');
-
-        // 4. Encaminha para o ecrã correto
-        if (perfil == 'motorista') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Bem-vindo, Motorista!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          // Futuramente: Navigator.pushReplacement para a Home do Motorista
-        } else if (perfil == 'pai') {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Bem-vindo, Responsável!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          // Futuramente: Navigator.pushReplacement para a Home do Pai
-        }
-      } else {
-        // Caso bizarro: tem login mas não tem documento na base de dados
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Erro: Perfil não encontrado na base de dados.'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      Navigator.pop(context);
-      String mensagemErro = 'Erro ao iniciar sessão.';
-
-      if (e.code == 'user-not-found' ||
-          e.code == 'wrong-password' ||
-          e.code == 'invalid-credential') {
-        mensagemErro = 'E-mail ou palavra-passe incorretos.';
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(mensagemErro), backgroundColor: Colors.red),
-      );
-    } catch (e) {
-      Navigator.pop(context);
-      print(e);
-    }
-  }
-
-  // // Dentro do seu Widget de Login, crie as funções vazias no topo do método build:
-
-  // void _loginComEmail() {
-  //   // Aqui entrará a lógica de validação dos campos de texto e Firebase Auth
-  //   print("Tentando logar com e-mail...");
-  // }
-
-  // void _loginComGoogle() {
-  //   // Aqui entrará o pacote google_sign_in
-  //   print("Chamando o fluxo do Gmail...");
-  // }
-
-  // void _loginComFacebook() {
-  //   // Aqui entrará o pacote flutter_facebook_auth
-  //   print("Chamando o fluxo do Facebook...");
-  // }
-
-  // Função que executa a validação ao clicar no botão
   Future<void> _tentarEntrar() async {
-    // 1. Primeiro, garantimos que o usuário preencheu os campos corretamente
     if (_formKey.currentState!.validate()) {
-      // 2. Mostra a barra de carregamento para dar um feedback visual
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -230,37 +138,48 @@ class _LoginScreenState extends State<LoginScreen> {
       );
 
       try {
-        // 3. Tenta autenticar o usuário no Firebase Auth
         UserCredential userCredential = await FirebaseAuth.instance
             .signInWithEmailAndPassword(
-              email: _emailController.text
-                  .trim(), // Verifique o nome do seu controlador
-              password: _passwordController.text
-                  .trim(), // Verifique o nome do seu controlador
+              email: _emailController.text.trim(),
+              password: _passwordController.text.trim(),
             );
 
         String uid = userCredential.user!.uid;
 
-        // 4. Vai no banco de dados (Firestore) buscar o documento desse usuário
         DocumentSnapshot docUsuario = await FirebaseFirestore.instance
-            .collection('utilizadores')
+            .collection('usuarios')
             .doc(uid)
             .get();
 
-        // 5. Fecha o aviso de carregamento
-        Navigator.pop(context);
+        if (!mounted) return;
+        Navigator.pop(context); // Fecha o loading
 
         if (docUsuario.exists) {
-          // 6. Lê o campo perfil para saber para qual tela enviar o usuário
-          String perfil = docUsuario.get('perfil');
+          Map<String, dynamic> dados =
+              docUsuario.data() as Map<String, dynamic>;
+          String? perfil = dados['perfil'];
 
-          if (perfil == 'motorista') {
-            // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => const HomeMotoristaScreen()));
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Bem-vindo, Motorista!')),
+          // SE O PERFIL FOR NULO OU VAZIO POR E-MAIL: Manda escolher o perfil limpando o estado
+          if (perfil == null || perfil.isEmpty) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => EscolhaPerfilPage(
+                  uid: userCredential.user!.uid,
+                  email: userCredential.user!.email ?? '',
+                  nomeInicial: userCredential.user!.displayName ?? '',
+                ),
+              ),
             );
-          } else if (perfil == 'pai') {
-            // Navegação correta para a nova HomeResponsavelScreen
+          } else if (perfil == 'motorista') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => const HomeMotoristaScreen(),
+              ),
+            );
+            // Navigator.pushReplacementNamed(context, '/home_motorista');
+          } else if (perfil == 'pai' || perfil == 'responsavel') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
@@ -269,29 +188,28 @@ class _LoginScreenState extends State<LoginScreen> {
             );
           }
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Erro: Perfil não encontrado na base de dados.'),
-              backgroundColor: Colors.red,
+          // Se existe no Auth mas não no Firestore (raro)
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => EscolhaPerfilPage(
+                uid: userCredential.user!.uid,
+                email: userCredential.user!.email ?? '',
+                nomeInicial: userCredential.user!.displayName ?? '',
+              ),
             ),
           );
         }
-      } on FirebaseAuthException catch (e) {
-        // Fecha o aviso de carregamento se der erro
+      } on FirebaseAuthException {
+        if (!mounted) return;
         Navigator.pop(context);
 
-        String mensagemErro = 'Erro ao iniciar sessão.';
-
-        if (e.code == 'user-not-found' ||
-            e.code == 'wrong-password' ||
-            e.code == 'invalid-credential') {
-          mensagemErro = 'E-mail ou senha incorretos.';
-        }
-
+        String mensajeErro = 'E-mail ou senha incorretos.';
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(mensagemErro), backgroundColor: Colors.red),
+          SnackBar(content: Text(mensajeErro), backgroundColor: Colors.red),
         );
       } catch (e) {
+        if (!mounted) return;
         Navigator.pop(context);
         print(e);
       }
@@ -313,7 +231,6 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // Mostra um indicador de carregamento
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -324,6 +241,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await FirebaseAuth.instance.setLanguageCode("pt-BR");
       await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
 
+      if (!mounted) return;
       Navigator.pop(context); // Fecha o loading
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -336,7 +254,8 @@ class _LoginScreenState extends State<LoginScreen> {
         ),
       );
     } on FirebaseAuthException catch (e) {
-      Navigator.pop(context); // Fecha o loading
+      if (!mounted) return;
+      Navigator.pop(context);
       String mensagem = 'Erro ao enviar e-mail de recuperação.';
 
       if (e.code == 'user-not-found') {
@@ -349,244 +268,286 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(content: Text(mensagem), backgroundColor: Colors.red),
       );
     } catch (e) {
+      if (!mounted) return;
       Navigator.pop(context);
       print(e);
     }
+  }
+
+  InputDecoration _buildInputStyle({
+    required String hint,
+    required IconData icon,
+    Widget? suffix,
+  }) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(
+        color: Colors.grey,
+        fontWeight: FontWeight.normal,
+        fontSize: 16,
+      ),
+      prefixIcon: Icon(icon, color: AppColors.azulPrincipal),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: Colors.white,
+      contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(
+          color: AppColors.azulPrincipal,
+          width: 2.0,
+        ),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.red, width: 1.5),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.red, width: 2.0),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.fundoBranco,
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 60.0),
-          child: Form(
-            key: _formKey, // Vincula a chave do fo rmulário aqui
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // 1. Imagem da Logo da Van (MAIOR, MAIS BAIXA E REDONDA)
-                const SizedBox(
-                  height: 40,
-                ), // Empurra a logo mais para baixo, dando distância do topo da tela
-                Center(
-                  child: Container(
-                    width:
-                        160, // Aumentado de 120 para 160 para dar mais destaque
-                    height: 160, // Aumentado de 120 para 160
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.white,
-                      border: Border.all(
-                        color: AppColors.azulPrincipal,
-                        width:
-                            3.5, // Borda levemente mais espessa para acompanhar o tamanho
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24.0,
+              vertical: 20.0,
+            ),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 20),
+                  Center(
+                    child: Container(
+                      width: 150,
+                      height: 150,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        border: Border.all(
+                          color: AppColors.azulPrincipal,
+                          width: 3.5,
                         ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(
-                        80,
-                      ), // Metade do novo width/height (160 / 2)
-                      child: Padding(
-                        padding: const EdgeInsets.all(
-                          16.0,
-                        ), // Mais espaço interno para a imagem ficar perfeita
-                        child: Image.asset(
-                          'lib/core/assets/images/logo2.png',
-                          fit: BoxFit.contain,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                // // 2. Nome do App
-                // const Text(
-                //   'VANCONNECT',
-                //   textAlign: TextAlign.center,
-                //   style: TextStyle(
-                //     fontSize: 28,
-                //     fontWeight: FontWeight.bold,
-                //     letterSpacing: 2.0,
-                //     color: AppColors.textoEscuro,
-                //   ),
-                // ),
-                // const SizedBox(height: 8),
-                const SizedBox(
-                  height: 32,
-                ), // Espaço entre a logo e o texto "FAÇA LOGIN PARA CONTINUAR"
-                // 3. Subtítulo (PT-BR)
-                const Text(
-                  'FAÇA LOGIN PARA CONTINUAR',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.textoSuave,
-                  ),
-                ),
-                const SizedBox(height: 48),
-
-                // 4. Campo de E-mail com Validação
-                TextFormField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.person_outline),
-                    hintText: 'E-mail',
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                  // Regra de validação do e-mail
-                  validator: (value) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Por favor, insira o seu e-mail';
-                    }
-                    // Expressão regular simples para checar se o texto tem formato de e-mail (ex@ex.com)
-                    final emailRegex = RegExp(
-                      r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                    );
-                    if (!emailRegex.hasMatch(value.trim())) {
-                      return 'Insira um formato de e-mail válido';
-                    }
-                    return null; // Retornar null significa que está tudo certo!
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                // 5. Campo de Senha com Validação
-                TextFormField(
-                  controller: _passwordController,
-                  obscureText: _obscurePassword,
-                  decoration: InputDecoration(
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    hintText: 'Senha',
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscurePassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                      ),
-                      onPressed: () {
-                        setState(() {
-                          _obscurePassword = !_obscurePassword;
-                        });
-                      },
-                    ),
-                  ),
-                  // Regra de validação da senha
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Por favor, insira a sua senha';
-                    }
-                    if (value.length < 6) {
-                      return 'A senha deve ter pelo menos 6 caracteres';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 12),
-
-                // 6. Esqueceu a Senha (PT-BR)
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _recuperarSenha,
-                    child: const Text(
-                      'Esqueceu sua senha?',
-                      style: TextStyle(
-                        color: Colors.blueAccent,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // 7. Botão de Entrar chamando a função de validação
-                BotaoPrincipal(texto: 'ENTRAR', aoClicar: _tentarEntrar),
-                const SizedBox(height: 48),
-
-                // 8. Divisor "Ou entrar com"
-                Row(
-                  children: const [
-                    Expanded(child: Divider(thickness: 1, color: Colors.grey)),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16.0),
-                      child: Text(
-                        'OU ENTRAR COM',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                    Expanded(child: Divider(thickness: 1, color: Colors.grey)),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                // 9. Ícones de Login Social
-                // Botão do Google ocupando a largura total (Clean e Minimalista)
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: OutlinedButton.icon(
-                    onPressed: _fazerLoginComGoogle,
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: Colors.grey.shade300, width: 1.5),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      backgroundColor: Colors.white,
-                      elevation: 0,
-                    ),
-                    icon: Image.network(
-                      'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/24px-Google_%22G%22_logo.svg.png',
-                      height: 22,
-                    ),
-                    label: const Text(
-                      'Continuar com o Google',
-                      style: TextStyle(
-                        color: Colors.black87,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: 0.3,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 48),
-
-                // 10. Link de Cadastro (PT-BR)
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text("NÃO TEM UMA CONTA?"),
-                    TextButton(
-                      onPressed: () {
-                        // Colocamos o comando de navegação aqui dentro:
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const EscolhaPerfilPage(),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 12,
+                            offset: const Offset(0, 6),
                           ),
-                        );
-                      },
-                      child: const Text(
-                        'CADASTRE-SE',
-                        style: TextStyle(
-                          color: Colors.blueAccent,
-                          fontWeight: FontWeight.bold,
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(75),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Image.asset(
+                            'lib/core/assets/images/logo2.png',
+                            fit: BoxFit.contain,
+                          ),
                         ),
                       ),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  const SizedBox(height: 32),
+                  const Text(
+                    'FAÇA LOGIN PARA CONTINUAR',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                      color: AppColors.textoSuave,
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    style: const TextStyle(fontSize: 16, color: Colors.black87),
+                    decoration: _buildInputStyle(
+                      hint: 'E-mail',
+                      icon: Icons.person_outline,
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Por favor, insira o seu e-mail';
+                      }
+                      final emailRegex = RegExp(
+                        r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                      );
+                      if (!emailRegex.hasMatch(value.trim())) {
+                        return 'Insira um formato de e-mail válido';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    style: const TextStyle(fontSize: 16, color: Colors.black87),
+                    decoration: _buildInputStyle(
+                      hint: 'Senha',
+                      icon: Icons.lock_outline,
+                      suffix: IconButton(
+                        icon: Icon(
+                          _obscurePassword
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined,
+                          color: AppColors.azulPrincipal,
+                        ),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
+                      ),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.isEmpty) {
+                        return 'Por favor, insira a sua senha';
+                      }
+                      if (value.length < 6) {
+                        return 'A senha deve tener pelo menos 6 caracteres';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _recuperarSenha,
+                      style: TextButton.styleFrom(
+                        minimumSize: Size.zero,
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: const Text(
+                        'Esqueceu sua senha?',
+                        style: TextStyle(
+                          color: AppColors.azulPrincipal,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  BotaoPrincipal(texto: 'ENTRAR', aoClicar: _tentarEntrar),
+                  const SizedBox(height: 40),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Divider(
+                          thickness: 1.2,
+                          color: Colors.grey.shade300,
+                        ),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 16.0),
+                        child: Text(
+                          'OU ENTRAR COM',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Divider(
+                          thickness: 1.2,
+                          color: Colors.grey.shade300,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    height: 54,
+                    child: OutlinedButton.icon(
+                      onPressed: _fazerLoginComGoogle,
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: Colors.grey.shade300,
+                          width: 1.5,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        backgroundColor: Colors.white,
+                        elevation: 0,
+                      ),
+                      icon: Image.network(
+                        'https://developers.google.com/static/identity/images/g-logo.png',
+                        height: 22,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Icon(
+                            Icons.account_circle,
+                            color: AppColors.azulPrincipal,
+                            size: 22,
+                          );
+                        },
+                      ),
+                      label: const Text(
+                        'Continuar com o Google',
+                        style: TextStyle(
+                          color: Colors.black87,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text(
+                        "NÃO TEM UMA CONTA?",
+                        style: TextStyle(
+                          color: Colors.grey,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          // CORREÇÃO: No clique de texto limpo, os parâmetros vão como nulos automaticamente para habilitar formulário em branco
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const EscolhaPerfilPage(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'CADASTRE-SE',
+                          style: TextStyle(
+                            color: AppColors.azulPrincipal,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         ),

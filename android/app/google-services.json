@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "1017608757014-a4g829rcrj2iubs5ensae96pea4s2ha4.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.vanconnect",
+            "certificate_hash": "d1ca2705c97df38f503ba4d352ad82993bbb1bab"
+          }
+        },
+        {
           "client_id": "1017608757014-qbds8i7pm2uef7iu7sshi3qifibgof6s.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {

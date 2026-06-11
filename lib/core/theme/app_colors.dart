@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   // Cores principais baseadas no protótipo que aprovou
-  static const Color azulPrincipal = Color(0xFF0D47A1); // Azul escuro do botão
+  static const Color azulPrincipal = Colors.blueAccent; // Azul escuro do botão
   static const Color amareloVan = Color(0xFFFBC02D);    // Amarelo da van do logo
   
   // Cores de fundo e superfícies (Clean)

@@ -1,81 +1,157 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import '../../../../core/theme/app_colors.dart';
 import 'cadastro_motorista_page.dart';
 import 'cadastro_pai_page.dart';
+import 'login_screen.dart';
 
-class EscolhaPerfilPage extends StatelessWidget {
-  const EscolhaPerfilPage({super.key});
+class EscolhaPerfilPage extends StatefulWidget {
+  final String? uid;
+  final String? email;
+  final String? nomeInicial;
+  final String? fotoUrl;
+
+  const EscolhaPerfilPage({
+    super.key,
+    this.uid,
+    this.email,
+    this.nomeInicial,
+    this.fotoUrl,
+  });
+
+  @override
+  State<EscolhaPerfilPage> createState() => _EscolhaPerfilPageState();
+}
+
+class _EscolhaPerfilPageState extends State<EscolhaPerfilPage> {
+  Future<void> _cancelarESair() async {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const Center(child: CircularProgressIndicator()),
+    );
+
+    try {
+      await FirebaseAuth.instance.signOut();
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+      if (await googleSignIn.isSignedIn()) {
+        await googleSignIn.disconnect();
+      }
+
+      if (!mounted) return;
+      Navigator.pop(context);
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      Navigator.pop(context);
+      print("Erro ao cancelar fluxo de perfil: $e");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text(
-          "Crie sua conta",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+    print("====== TESTE DE FLUXO VANCONNECT ======");
+    print("UID recebido: ${widget.uid}");
+    print("Email recebido: ${widget.email}");
+    print("Nome recebido: ${widget.nomeInicial}");
+    print("=======================================");
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _cancelarESair();
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.fundoBranco,
+        appBar: AppBar(
+          backgroundColor: AppColors.fundoBranco,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.black87),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: _cancelarESair,
+          ),
+          title: const Text(
+            "Crie sua conta",
+            style: TextStyle(
+              color: Colors.black87,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
         ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text(
-              "Quem é você no VanConnect?",
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Colors.black87,
+        body: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const Text(
+                "Quem é você no VanConnect?",
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              "Escolha o seu perfil para personalizarmos sua experiência.",
-              style: TextStyle(fontSize: 14, color: Colors.black54),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 32),
+              const SizedBox(height: 8),
+              const Text(
+                "Escolha o seu perfil para personalizarmos sua experiência.",
+                style: TextStyle(fontSize: 14, color: AppColors.textoSuave),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
 
-            // CARD DO MOTORISTA
-            _buildPerfilCard(
-              context: context,
-              titulo: "Sou Motorista",
-              subtitulo: "Gerencie suas rotas, vans e passageiros.",
-              icone: Icons.directions_bus_rounded,
-              corIcone: Colors.blueAccent,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CadastroMotoristaPage(),
-                  ),
-                );
-              },
-            ),
+              _buildPerfilCard(
+                context: context,
+                titulo: "Sou Motorista",
+                subtitulo: "Gerencie suas rotas, vans e passageiros.",
+                icone: Icons.directions_bus_rounded,
+                corIcone: AppColors.azulPrincipal,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CadastroMotoristaPage(
+                        uid: widget.uid,
+                        email: widget.email,
+                        nomeInicial: widget.nomeInicial,
+                        fotoUrl: widget.fotoUrl,
+                      ),
+                    ),
+                  );
+                },
+              ),
 
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
 
-            // CARD DO PAI / RESPONSÁVEL
-            _buildPerfilCard(
-              context: context,
-              titulo: "Sou Pai / Responsável",
-              subtitulo: "Acompanhe o transporte do seu filho em tempo real.",
-              icone: Icons.family_restroom_rounded,
-              corIcone: Colors.green[700]!,
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CadastroPaiPage(),
-                  ),
-                );
-              },
-            ),
-          ],
+              _buildPerfilCard(
+                context: context,
+                titulo: "Sou Pai / Responsável",
+                subtitulo: "Acompanhe o transporte do seu filho em tempo real.",
+                icone: Icons.family_restroom_rounded,
+                corIcone: Colors.green[700]!,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => CadastroPaiPage(
+                        uid: widget.uid,
+                        email: widget.email,
+                        nomeInicial: widget.nomeInicial,
+                        fotoUrl: widget.fotoUrl,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -97,14 +173,7 @@ class EscolhaPerfilPage extends StatelessWidget {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.black12, width: 1.5),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          border: Border.all(color: Colors.grey.shade200, width: 1.5),
         ),
         child: Row(
           children: [
@@ -119,7 +188,6 @@ class EscolhaPerfilPage extends StatelessWidget {
             const SizedBox(width: 16),
             Expanded(
               child: Column(
-                mainAxisAlignment: MainAxisAlignment.start,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
@@ -133,7 +201,10 @@ class EscolhaPerfilPage extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subtitulo,
-                    style: const TextStyle(fontSize: 13, color: Colors.black54),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppColors.textoSuave,
+                    ),
                   ),
                 ],
               ),

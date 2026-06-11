@@ -1,9 +1,21 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../../../../core/theme/app_colors.dart'; // Ajuste o caminho do seu tema conforme o projeto
 
 class CadastroMotoristaPage extends StatefulWidget {
-  const CadastroMotoristaPage({super.key});
+  final String? uid;
+  final String? email;
+  final String? nomeInicial;
+  final String? fotoUrl;
+
+  const CadastroMotoristaPage({
+    super.key,
+    this.uid,
+    this.email,
+    this.nomeInicial,
+    this.fotoUrl,
+  });
 
   @override
   State<CadastroMotoristaPage> createState() => _CadastroMotoristaPageState();
@@ -16,12 +28,24 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
   final _emailController = TextEditingController();
   final _confirmarEmailController = TextEditingController();
   final _telefoneController = TextEditingController();
-  // final _placaController = TextEditingController();
   final _senhaController = TextEditingController();
   final _confirmarSenhaController = TextEditingController();
 
   bool _senhaOculta = true;
   bool _confirmarSenhaOculta = true;
+  bool _estaCarregando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.nomeInicial != null && widget.nomeInicial!.isNotEmpty) {
+      _nomeController.text = widget.nomeInicial!;
+    }
+    if (widget.email != null && widget.email!.isNotEmpty) {
+      _emailController.text = widget.email!;
+      _confirmarEmailController.text = widget.email!;
+    }
+  }
 
   @override
   void dispose() {
@@ -29,13 +53,14 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
     _emailController.dispose();
     _confirmarEmailController.dispose();
     _telefoneController.dispose();
-    // _placaController.dispose();
     _senhaController.dispose();
     _confirmarSenhaController.dispose();
     super.dispose();
   }
 
   Future<void> _cadastrarMotoristaNoFirebase() async {
+    setState(() => _estaCarregando = true);
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -43,30 +68,35 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
     );
 
     try {
-      // 1. Cria a conta no Firebase Auth
-      UserCredential userCredential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: _emailController.text.trim(),
-            password: _senhaController.text.trim(),
-          );
+      String uidFinal = widget.uid ?? '';
+      String emailFinal = _emailController.text.trim();
 
-      // 2. Pega o ID único gerado pelo Google
-      String uid = userCredential.user!.uid;
+      // Se veio pelo fluxo de E-MAIL tradicional, cria o usuário no Auth primeiro
+      if (widget.uid == null) {
+        UserCredential userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(
+              email: emailFinal,
+              password: _senhaController.text.trim(),
+            );
+        uidFinal = userCredential.user!.uid;
+      }
 
-      // 3. Salva os dados do motorista no Firestore
-      await FirebaseFirestore.instance.collection('utilizadores').doc(uid).set({
-        'nome': _nomeController.text
-            .trim(), // Verifique se o seu controller chama assim
-        'telefone': _telefoneController.text
-            .trim(), // Verifique se o seu controller chama assim
-        'email': _emailController.text.trim(),
-        'perfil': 'motorista',
-        'status_conta':
-            'pendente_configuracao', // O status que vai exigir a van depois
-        'data_registo': FieldValue.serverTimestamp(),
-      });
+      // Alinhado com a coleção unificada 'usuarios' do Firestore
+      await FirebaseFirestore.instance
+          .collection('usuarios')
+          .doc(uidFinal)
+          .set({
+            'nome': _nomeController.text.trim(),
+            'telefone': _telefoneController.text.trim(),
+            'email': emailFinal,
+            'fotoUrl': widget.fotoUrl ?? '',
+            'perfil': 'motorista',
+            'status_conta': 'pendente_configuracao',
+            'data_registo': FieldValue.serverTimestamp(),
+          });
 
-      Navigator.pop(context);
+      if (!mounted) return;
+      Navigator.pop(context); // Fecha o loading
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -75,9 +105,11 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
         ),
       );
 
-      // Futuramente: Navigator.pushReplacement(...) para a Home
+      // Limpa a navegação e vai para a Home respectiva (Ajuste o comando quando criar a home do motorista)
+      Navigator.popUntil(context, (route) => route.isFirst);
     } on FirebaseAuthException catch (e) {
-      Navigator.pop(context);
+      if (!mounted) return;
+      Navigator.pop(context); // Fecha o loading
       String mensagemErro = 'Ocorreu um erro ao cadastrar.';
 
       if (e.code == 'weak-password') {
@@ -92,8 +124,11 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
         SnackBar(content: Text(mensagemErro), backgroundColor: Colors.red),
       );
     } catch (e) {
+      if (!mounted) return;
       Navigator.pop(context);
       print(e);
+    } finally {
+      setState(() => _estaCarregando = false);
     }
   }
 
@@ -122,6 +157,8 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bool veioDoGoogle = widget.uid != null;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -134,16 +171,12 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
         ),
       ),
       body: SafeArea(
-        // Protege contra o notch e cantos do dispositivo
         child: LayoutBuilder(
-          // Ajuda a calcular o espaço disponível de forma inteligente
           builder: (context, constraints) {
             return SingleChildScrollView(
               padding: const EdgeInsets.all(24.0),
               child: ConstrainedBox(
-                constraints: BoxConstraints(
-                  minHeight: constraints.maxHeight, // Garante altura mínima
-                ),
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: Form(
                   key: _formKey,
                   child: Column(
@@ -164,24 +197,28 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Nome
+                      // Campo Nome
                       _buildTextFormField(
                         controller: _nomeController,
                         label: "Nome Completo",
                         hint: "Ex: Herick Silva",
-                        icon: Icons.person_outlined,
+                        icon: Icons.person_outline,
                         validator: (valor) => valor == null || valor.isEmpty
                             ? "Digite seu nome"
                             : null,
                       ),
                       const SizedBox(height: 16),
 
-                      // E-mail
+                      // Campo E-mail
                       _buildTextFormField(
                         controller: _emailController,
                         label: "E-mail",
                         hint: "motorista@email.com",
                         icon: Icons.email_outlined,
+                        enabled: !veioDoGoogle,
+                        fillColor: veioDoGoogle
+                            ? Colors.grey.shade100
+                            : Colors.white,
                         keyboardType: TextInputType.emailAddress,
                         validator: (valor) {
                           if (valor == null || valor.isEmpty) {
@@ -195,26 +232,28 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Confirmação de E-mail
-                      _buildTextFormField(
-                        controller: _confirmarEmailController,
-                        label: "Confirme seu E-mail",
-                        hint: "Digite o e-mail novamente",
-                        icon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
-                        validator: (valor) {
-                          if (valor == null || valor.isEmpty) {
-                            return "A confirmation de e-mail é obrigatória";
-                          }
-                          if (valor.trim() != _emailController.text.trim()) {
-                            return "Os e-mails não coincidem";
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
+                      // Campo Confirmação de E-mail (Ocultado se veio do Google)
+                      if (!veioDoGoogle) ...[
+                        _buildTextFormField(
+                          controller: _confirmarEmailController,
+                          label: "Confirme seu E-mail",
+                          hint: "Digite o e-mail novamente",
+                          icon: Icons.email_outlined,
+                          keyboardType: TextInputType.emailAddress,
+                          validator: (valor) {
+                            if (valor == null || valor.isEmpty) {
+                              return "A confirmação de e-mail é obrigatória";
+                            }
+                            if (valor.trim() != _emailController.text.trim()) {
+                              return "Os e-mails não coincidem";
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
 
-                      // Telefone com Máscara
+                      // Campo Telefone
                       _buildTextFormField(
                         controller: _telefoneController,
                         label: "Telefone / WhatsApp",
@@ -245,96 +284,80 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Placa da Van
-                      // _buildTextFormField(
-                      //   controller: _placaController,
-                      //   label: "Placa da Van",
-                      //   hint: "ABC1D23",
-                      //   icon: Icons.directions_bus_outlined,
-                      //   textCapitalization: TextCapitalization.characters,
-                      //   validator: (valor) => valor == null || valor.isEmpty
-                      //       ? "Digite a placa da van"
-                      //       : null,
-                      // ),
-                      // const SizedBox(height: 16),
-
-                      // Senha com Olhinho
-                      _buildTextFormField(
-                        controller: _senhaController,
-                        label: "Senha",
-                        hint: "Crie uma senha forte",
-                        icon: Icons.lock_outlined,
-                        isObscure: _senhaOculta,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _senhaOculta
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: Colors.blueAccent,
+                      // Campos de Senha (SÓ SURGEM SE NÃO VEIO DO GOOGLE)
+                      if (!veioDoGoogle) ...[
+                        _buildTextFormField(
+                          controller: _senhaController,
+                          label: "Senha",
+                          hint: "Crie uma senha forte",
+                          icon: Icons.lock_outlined,
+                          isObscure: _senhaOculta,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _senhaOculta
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: AppColors.azulPrincipal,
+                            ),
+                            onPressed: () =>
+                                setState(() => _senhaOculta = !_senhaOculta),
                           ),
-                          onPressed: () =>
-                              setState(() => _senhaOculta = !_senhaOculta),
+                          validator: _validarSenha,
                         ),
-                        validator: _validarSenha,
-                      ),
-
-                      const Padding(
-                        padding: EdgeInsets.only(top: 6, left: 4, bottom: 16),
-                        child: Text(
-                          "Mínimo de 8 caracteres, contendo pelo menos 1 número.",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.black38,
-                            height: 1.2,
+                        const Padding(
+                          padding: EdgeInsets.only(top: 6, left: 4, bottom: 16),
+                          child: Text(
+                            "Mínimo de 8 caracteres, contendo pelo menos 1 número.",
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.black38,
+                              height: 1.2,
+                            ),
                           ),
                         ),
-                      ),
-
-                      // Confirmação de Senha com Olhinho
-                      _buildTextFormField(
-                        controller: _confirmarSenhaController,
-                        label: "Confirme sua Senha",
-                        hint: "Digite a senha novamente",
-                        icon: Icons.lock_outlined,
-                        isObscure: _confirmarSenhaOculta,
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _confirmarSenhaOculta
-                                ? Icons.visibility_off_outlined
-                                : Icons.visibility_outlined,
-                            color: Colors.blueAccent,
+                        _buildTextFormField(
+                          controller: _confirmarSenhaController,
+                          label: "Confirme sua Senha",
+                          hint: "Digite a senha novamente",
+                          icon: Icons.lock_outlined,
+                          isObscure: _confirmarSenhaOculta,
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _confirmarSenhaOculta
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: AppColors.azulPrincipal,
+                            ),
+                            onPressed: () => setState(
+                              () => _confirmarSenhaOculta =
+                                  !_confirmarSenhaOculta,
+                            ),
                           ),
-                          onPressed: () => setState(
-                            () =>
-                                _confirmarSenhaOculta = !_confirmarSenhaOculta,
-                          ),
+                          validator: (valor) {
+                            if (valor == null || valor.isEmpty) {
+                              return "A confirmação de senha é obrigatória";
+                            }
+                            if (valor != _senhaController.text) {
+                              return "As senhas não coincidem";
+                            }
+                            return null;
+                          },
                         ),
-                        validator: (valor) {
-                          if (valor == null || valor.isEmpty) {
-                            return "A confirmação de senha é obrigatória";
-                          }
-                          if (valor != _senhaController.text) {
-                            return "As senhas não coincidem";
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 32),
+                        const SizedBox(height: 32),
+                      ],
 
                       ElevatedButton(
                         onPressed: () {
-                          // 1. Primeiro valida se todos os campos do formulário estão corretos
                           if (_formKey.currentState!.validate()) {
-                            // 2. Se os campos forem válidos, dispara a criação de conta no Firebase
                             _cadastrarMotoristaNoFirebase();
                           }
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blueAccent,
+                          backgroundColor: AppColors.azulPrincipal,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                            borderRadius: BorderRadius.circular(16),
+                          ), // Ajustado de 12 para 16 do design
                         ),
                         child: const Text(
                           "CONCLUIR CADASTRO",
@@ -362,8 +385,9 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
     required String hint,
     required IconData icon,
     required String? Function(String?) validator,
-    Color accentColor = Colors.blueAccent,
     bool isObscure = false,
+    bool enabled = true,
+    Color fillColor = Colors.white,
     Widget? suffixIcon,
     TextInputType keyboardType = TextInputType.text,
     TextCapitalization textCapitalization = TextCapitalization.none,
@@ -372,6 +396,7 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
     return TextFormField(
       controller: controller,
       obscureText: isObscure,
+      enabled: enabled,
       keyboardType: keyboardType,
       textCapitalization: textCapitalization,
       validator: validator,
@@ -379,23 +404,28 @@ class _CadastroMotoristaPageState extends State<CadastroMotoristaPage> {
       decoration: InputDecoration(
         labelText: label,
         hintText: hint,
-        prefixIcon: Icon(icon, color: accentColor),
+        filled: true,
+        fillColor: fillColor,
+        prefixIcon: Icon(icon, color: AppColors.azulPrincipal),
         suffixIcon: suffixIcon,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)),
         enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: Colors.black12, width: 1.5),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: Colors.grey.shade300, width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: accentColor, width: 2),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: const BorderSide(
+            color: AppColors.azulPrincipal,
+            width: 2,
+          ),
         ),
         errorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
         ),
         focusedErrorBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(16),
           borderSide: const BorderSide(color: Colors.redAccent, width: 2),
         ),
       ),
