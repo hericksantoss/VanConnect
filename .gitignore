@@ -43,3 +43,8 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Chaves de assinatura (nunca versionar)
+*.jks
+*.keystore
+**/android/key.properties

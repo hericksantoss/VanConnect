@@ -1,11 +1,11 @@
 {
-    "name": "vanconnect",
-    "short_name": "vanconnect",
+    "name": "van_connect",
+    "short_name": "van_connect",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "Van Connect - transporte escolar",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,0 +1,72 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+
+import '../../app/tema.dart';
+import '../../componentes/ui.dart';
+import '../../dominio/modelos.dart';
+import '../../estado/van_store.dart';
+import 'ajustes_responsavel.dart';
+import 'ausencias.dart';
+import 'filhos.dart';
+import 'mapa_principal.dart';
+import 'pagamentos.dart';
+
+class ShellResponsavel extends StatefulWidget {
+  const ShellResponsavel({super.key});
+
+  @override
+  State<ShellResponsavel> createState() => _ShellResponsavelState();
+}
+
+class _ShellResponsavelState extends State<ShellResponsavel> {
+  int _aba = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = VanScope.of(context);
+    final p = context.cores;
+    final hoje = DateTime.now();
+    final abertas = store.filhosDoResponsavel
+        .expand(store.cobrancasDo)
+        .where((c) => const [StatusCobranca.pendente, StatusCobranca.atrasada].contains(c.status(hoje)))
+        .length;
+
+    return Scaffold(
+      extendBody: true,
+      body: IndexedStack(
+        index: _aba,
+        children: const [MapaPrincipalTela(), FilhosTela(), AvisosTela(), PagamentosTela(), AjustesResponsavelTela()],
+      ),
+      bottomNavigationBar: BarraAbas(
+        indice: _aba,
+        aoMudar: (i) => setState(() => _aba = i),
+        itens: [
+          const BottomNavigationBarItem(icon: Icon(CupertinoIcons.map), activeIcon: Icon(CupertinoIcons.map_fill), label: 'Mapa'),
+          const BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.person_2), activeIcon: Icon(CupertinoIcons.person_2_fill), label: 'Filhos'),
+          BottomNavigationBarItem(
+            icon: Badge(
+              isLabelVisible: store.emergenciaEm != null,
+              backgroundColor: p.vermelho,
+              child: const Icon(CupertinoIcons.bell),
+            ),
+            activeIcon: const Icon(CupertinoIcons.bell_fill),
+            label: 'Avisos',
+          ),
+          BottomNavigationBarItem(
+            icon: Badge(
+              isLabelVisible: abertas > 0,
+              label: Text('$abertas'),
+              backgroundColor: p.vermelho,
+              child: const Icon(CupertinoIcons.creditcard),
+            ),
+            activeIcon: const Icon(CupertinoIcons.creditcard_fill),
+            label: 'Pagamentos',
+          ),
+          const BottomNavigationBarItem(
+              icon: Icon(CupertinoIcons.gear_alt), activeIcon: Icon(CupertinoIcons.gear_alt_fill), label: 'Ajustes'),
+        ],
+      ),
+    );
+  }
+}

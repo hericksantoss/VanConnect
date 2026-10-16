@@ -1,109 +1,81 @@
-import 'package:VanConnect/features/auth/screens/home_motorista_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_core/firebase_core.dart'; // Importa a base do Firebase
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'firebase_options.dart'; // O arquivo gerado pelo FlutterFire
+import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 
-// IMPORTAÇÕES DO SEU ECOSSISTEMA DE TELAS
-import 'features/auth/screens/login_screen.dart'; 
-import 'features/auth/screens/home_responsavel_screen.dart';
-import 'features/auth/screens/escolha_perfil_page.dart';
+import 'app/tema.dart';
+import 'estado/van_store.dart';
+import 'telas/entrada/boas_vindas.dart';
+import 'telas/motorista/shell_motorista.dart';
+import 'telas/responsavel/shell_responsavel.dart';
 
-void main() async {
-  // Garante que todas as comunicações nativas do Flutter estejam prontas antes de iniciar o Firebase
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Inicializa o Firebase usando as configurações automáticas do seu projeto
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
-
-  runApp(const MyApp());
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  runApp(VanConnectApp(store: VanStore()));
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class VanConnectApp extends StatelessWidget {
+  const VanConnectApp({super.key, required this.store});
+
+  final VanStore store;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'VanConnect',
-      debugShowCheckedModeBanner: false,
-      // Mantém exatamente a identidade visual que você definiu
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        scaffoldBackgroundColor: Colors.white,
-      ),
-      
-      // A MÁGICA DE SESSÃO PERSISTENTE COMEÇA AQUI:
-      // O StreamBuilder escuta em background se o chip do celular guardou o token de login
-      home: StreamBuilder<User?>(
-        stream: FirebaseAuth.instance.authStateChanges(),
-        builder: (context, snapshot) {
-          // Enquanto o Firebase lê a memória do Moto G100, mostra um loading limpo na tela branca
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              backgroundColor: Colors.white,
-              body: Center(child: CircularProgressIndicator()),
+    return VanScope(
+      store: store,
+      child: ValueListenableBuilder<ThemeMode>(
+        valueListenable: store.tema,
+        builder: (context, modo, _) => MaterialApp(
+          title: 'Van Connect',
+          debugShowCheckedModeBanner: false,
+          theme: criarTema(Brightness.light),
+          darkTheme: criarTema(Brightness.dark),
+          themeMode: modo,
+          themeAnimationDuration: const Duration(milliseconds: 350),
+          themeAnimationCurve: Curves.easeOutCubic,
+          scrollBehavior: const RolagemIOS(),
+          locale: const Locale('pt', 'BR'),
+          supportedLocales: const [Locale('pt', 'BR')],
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          builder: (context, child) {
+            final escuro = Theme.of(context).brightness == Brightness.dark;
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: (escuro ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark).copyWith(
+                statusBarColor: Colors.transparent,
+                systemNavigationBarColor: Colors.transparent,
+              ),
+              child: child!,
             );
-          }
-
-          // POSSIBILIDADE 2: O usuário já está logado no aparelho!
-          if (snapshot.hasData && snapshot.data != null) {
-            return const RoteadorDeSessaoHome(); // Passa o controle para decidir a Home certa pelo Firestore
-          }
-
-          // POSSIBILIDADE 1: Não há sessão ativa na memória, joga para a tela de login tradicional
-          return const LoginScreen();
-        },
-      ), 
+          },
+          home: const _Raiz(),
+        ),
+      ),
     );
   }
 }
 
-// Widget inteligente que faz a leitura da chave primária (UID) no banco de dados 
-// para saber se redireciona o usuário para o fluxo de Motorista ou de Pai/Responsável
-class RoteadorDeSessaoHome extends StatelessWidget {
-  const RoteadorDeSessaoHome({super.key});
+class _Raiz extends StatelessWidget {
+  const _Raiz();
 
   @override
   Widget build(BuildContext context) {
-    final user = FirebaseAuth.instance.currentUser;
-
-    return FutureBuilder<DocumentSnapshot>(
-      future: FirebaseFirestore.instance.collection('usuarios').doc(user?.uid).get(),
-      builder: (context, snapshot) {
-        // Aguarda a consulta ao Firestore terminar
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Scaffold(
-            backgroundColor: Colors.white,
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        // Se o documento existe, lê o campo 'perfil' salvo na persistência tardia
-        if (snapshot.hasData && snapshot.data!.exists) {
-          Map<String, dynamic> dados = snapshot.data!.data() as Map<String, dynamic>;
-          String? perfil = dados['perfil'];
-
-          if (perfil == 'motorista') {
-  return const HomeMotoristaScreen(); 
-
-          } else if (perfil == 'pai' || perfil == 'responsavel') {
-            return const HomeResponsavelScreen(); // Abre direto na tela com o seu mapa e a barra inferior!
-          }
-        }
-
-        // Caso de contorno de segurança: se o usuário está autenticado no Auth mas por algum motivo
-        // fechou o app na tela de Escolha de Perfil sem concluir o cadastro, o app manda ele de volta 
-        // para a Escolha de Perfil passando os dados salvos para não gerar dados órfãos.
-        return EscolhaPerfilPage(
-          uid: user?.uid, 
-          email: user?.email ?? '',
-          nomeInicial: user?.displayName ?? '',
-          fotoUrl: user?.photoURL ?? '',
-        );
+    final perfil = VanScope.of(context).perfil;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 420),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      transitionBuilder: (child, anim) => FadeTransition(
+        opacity: anim,
+        child: ScaleTransition(scale: Tween(begin: 0.98, end: 1.0).animate(anim), child: child),
+      ),
+      child: switch (perfil) {
+        null => const BoasVindas(key: ValueKey('entrada')),
+        Perfil.motorista => const ShellMotorista(key: ValueKey('motorista')),
+        Perfil.responsavel => const ShellResponsavel(key: ValueKey('responsavel')),
       },
     );
   }
