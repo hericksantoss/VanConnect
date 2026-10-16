@@ -4,6 +4,7 @@ import '../../app/tema.dart';
 import '../../componentes/aparencia.dart';
 import '../../componentes/ui.dart';
 import '../../estado/van_store.dart';
+import '../../tutoriais/tutoriais.dart';
 
 class AjustesResponsavelTela extends StatelessWidget {
   const AjustesResponsavelTela({super.key});
@@ -49,6 +50,16 @@ class AjustesResponsavelTela extends StatelessWidget {
         ),
         Secao(
           filhos: [
+            Linha(
+              inicio: IconeApp(CupertinoIcons.lightbulb_fill, cor: p.azul),
+              titulo: 'Rever tutoriais',
+              subtitulo: 'Mostra de novo as dicas de cada aba',
+              seta: false,
+              aoTocar: () async {
+                await Tutoriais.reativarTodos();
+                if (context.mounted) avisar(context, 'Tutoriais reativados: toque nas abas para ver', icone: CupertinoIcons.lightbulb_fill, cor: p.azul);
+              },
+            ),
             Linha(
               inicio: const IconeApp(CupertinoIcons.bus, cor: Paleta.azulMarca),
               titulo: 'Ver como motorista',

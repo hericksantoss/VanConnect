@@ -7,10 +7,12 @@ import 'estado/van_store.dart';
 import 'telas/entrada/boas_vindas.dart';
 import 'telas/motorista/shell_motorista.dart';
 import 'telas/responsavel/shell_responsavel.dart';
+import 'tutoriais/tutoriais.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  await Tutoriais.iniciar();
   runApp(VanConnectApp(store: VanStore()));
 }
 

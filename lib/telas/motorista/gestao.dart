@@ -6,6 +6,7 @@ import '../../componentes/aparencia.dart';
 import '../../componentes/ui.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/van_store.dart';
+import '../../tutoriais/tutoriais.dart';
 import 'passageiros.dart';
 
 void abrirAlunos(BuildContext context, {bool pedidos = false}) =>
@@ -101,6 +102,16 @@ class GestaoTela extends StatelessWidget {
         ),
         Secao(
           filhos: [
+            Linha(
+              inicio: IconeApp(CupertinoIcons.lightbulb_fill, cor: p.azul),
+              titulo: 'Rever tutoriais',
+              subtitulo: 'Mostra de novo as dicas de cada aba',
+              seta: false,
+              aoTocar: () async {
+                await Tutoriais.reativarTodos();
+                if (context.mounted) avisar(context, 'Tutoriais reativados: toque nas abas para ver', icone: CupertinoIcons.lightbulb_fill, cor: p.azul);
+              },
+            ),
             Linha(
               inicio: IconeApp(CupertinoIcons.person_2_fill, cor: p.cinza),
               titulo: 'Ver como responsável',

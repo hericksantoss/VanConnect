@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../componentes/ui.dart';
 import '../../app/tema.dart';
 import '../../estado/van_store.dart';
+import '../../tutoriais/tutoriais.dart';
 import 'financeiro.dart';
 import 'gestao.dart';
 import 'inicio.dart';
@@ -21,6 +22,14 @@ class ShellMotorista extends StatefulWidget {
 class _ShellMotoristaState extends State<ShellMotorista> {
   int _aba = 0;
 
+  static const _tutoriais = ['inicio', 'rotas', 'financas', 'gestao'];
+
+  void _irPara(int aba) {
+    if (aba == _aba) return;
+    setState(() => _aba = aba);
+    Tutoriais.aoAbrirAba(context, 'motorista.${_tutoriais[aba]}');
+  }
+
   @override
   Widget build(BuildContext context) {
     final store = VanScope.of(context);
@@ -34,7 +43,7 @@ class _ShellMotoristaState extends State<ShellMotorista> {
       body: IndexedStack(
         index: _aba,
         children: [
-          InicioTela(irPara: (i) => setState(() => _aba = i)),
+          InicioTela(irPara: _irPara),
           const RotasTela(),
           const FinanceiroTela(),
           const GestaoTela(),
@@ -42,7 +51,7 @@ class _ShellMotoristaState extends State<ShellMotorista> {
       ),
       bottomNavigationBar: BarraAbas(
         indice: _aba,
-        aoMudar: (i) => setState(() => _aba = i),
+        aoMudar: _irPara,
         topo: emAndamento
             ? Tocavel(
                 aoTocar: () => abrirViagem(context),

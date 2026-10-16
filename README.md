@@ -36,6 +36,12 @@ Feito em **Flutter** — roda em **Android** e **iPhone (iOS)** com o mesmo cód
 irmãos agrupados na mesma parada, ausências avisadas já fora da rota, avanço automático e
 **botão de emergência** que alerta todas as famílias.
 
+### Tutoriais interativos
+Ao tocar em uma aba pela primeira vez no uso do app, abre um pop-up com o passo a passo daquela aba
+(conteúdo diferente para motorista e responsável). Dá para deslizar entre as etapas e marcar
+**Não mostrar novamente** — a escolha fica salva no aparelho. Em *Ajustes/Gestão › Rever tutoriais*
+eles voltam a aparecer. O conteúdo fica em `lib/tutoriais/conteudo.dart`.
+
 ### Visual
 - Padrão **azul, cinza e branco**, com **modo escuro** (Ajustes › Aparência).
 - Estilo **iOS**: títulos grandes, listas agrupadas, ícones suaves, barra de abas com desfoque,
@@ -78,6 +84,7 @@ lib/
 ├── app/
 │   ├── tema.dart             # Paleta (azul/cinza/branco), tema iOS, rolagem elástica
 │   └── formatos.dart         # moeda, datas e horários em pt-BR
+├── tutoriais/                # conteúdo e pop-up dos tutoriais por aba
 ├── dominio/modelos.dart      # Aluno, Escola, Veiculo, Trajeto, Viagem, Cobranca, Ausencia, Solicitacao
 ├── dados/semente.dart        # dados fictícios de demonstração
 ├── estado/van_store.dart     # estado do app, cadastros, simulação da viagem, relatórios

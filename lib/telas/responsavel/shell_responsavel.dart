@@ -5,6 +5,7 @@ import '../../app/tema.dart';
 import '../../componentes/ui.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/van_store.dart';
+import '../../tutoriais/tutoriais.dart';
 import 'ajustes_responsavel.dart';
 import 'ausencias.dart';
 import 'filhos.dart';
@@ -20,6 +21,14 @@ class ShellResponsavel extends StatefulWidget {
 
 class _ShellResponsavelState extends State<ShellResponsavel> {
   int _aba = 0;
+
+  static const _tutoriais = ['mapa', 'filhos', 'avisos', 'pagamentos', 'ajustes'];
+
+  void _irPara(int aba) {
+    if (aba == _aba) return;
+    setState(() => _aba = aba);
+    Tutoriais.aoAbrirAba(context, 'responsavel.${_tutoriais[aba]}');
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +48,7 @@ class _ShellResponsavelState extends State<ShellResponsavel> {
       ),
       bottomNavigationBar: BarraAbas(
         indice: _aba,
-        aoMudar: (i) => setState(() => _aba = i),
+        aoMudar: _irPara,
         itens: [
           const BottomNavigationBarItem(icon: Icon(CupertinoIcons.map), activeIcon: Icon(CupertinoIcons.map_fill), label: 'Mapa'),
           const BottomNavigationBarItem(

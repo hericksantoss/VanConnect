@@ -1,8 +1,12 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:van_connect/dominio/modelos.dart';
 import 'package:van_connect/estado/van_store.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:van_connect/main.dart';
+import 'package:van_connect/tutoriais/conteudo.dart';
+import 'package:van_connect/tutoriais/tutoriais.dart';
 
 void main() {
   testWidgets('entra como motorista e vê a próxima viagem', (tester) async {
@@ -78,5 +82,44 @@ void main() {
     store.atualizarAluno(lucas, turno: Turno.tarde, escolaId: 'e2');
     expect(store.trajetos.firstWhere((t) => t.id == 't1').alunoIds.contains('a1'), isFalse);
     expect(store.trajetos.firstWhere((t) => t.id == 't3').alunoIds.contains('a1'), isTrue);
+  });
+
+  test('há tutorial para todas as abas dos dois perfis', () {
+    for (final aba in ['inicio', 'rotas', 'financas', 'gestao']) {
+      expect(tutoriais['motorista.$aba']?.passos, isNotEmpty);
+    }
+    for (final aba in ['mapa', 'filhos', 'avisos', 'pagamentos', 'ajustes']) {
+      expect(tutoriais['responsavel.$aba']?.passos, isNotEmpty);
+    }
+  });
+
+  testWidgets('tutorial aparece ao tocar na aba e respeita "Não mostrar novamente"', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    await Tutoriais.iniciar();
+    final store = VanStore()..escolherPerfil(Perfil.motorista);
+    await tester.pumpWidget(VanConnectApp(store: store));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    // Nada aparece ao abrir o app.
+    expect(find.textContaining('Como usar'), findsNothing);
+
+    await tester.tap(find.text('Rotas').last);
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Como usar · Rotas'), findsOneWidget);
+
+    await tester.tap(find.text('Não mostrar novamente'));
+    await tester.pump();
+    await tester.tap(find.byIcon(CupertinoIcons.xmark_circle_fill));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Como usar · Rotas'), findsNothing);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getBool('tutorial.motorista.rotas.oculto'), isTrue);
+    expect(Tutoriais.ocultos, 1);
+
+    await Tutoriais.reativarTodos();
+    expect(Tutoriais.ocultos, 0);
   });
 }
