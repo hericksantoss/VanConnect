@@ -193,6 +193,24 @@ class _Painel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
+        if (store.sinalFraco)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Cartao(
+              cor: p.suave(p.laranja),
+              child: Row(children: [
+                Icon(CupertinoIcons.wifi_slash, color: p.laranja),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Simulando celular sem sinal: as famílias continuam vendo a última posição enviada. '
+                    'Toque na antena para voltar.',
+                    style: TextStyle(color: p.texto, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ]),
+            ),
+          ),
         if (store.emergenciaEm != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
@@ -217,6 +235,15 @@ class _Painel extends StatelessWidget {
                   Text(v.trajeto.nome, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.6)),
                   Text('$feitas de $total paradas · ${v.aBordo} a bordo', style: TextStyle(color: p.textoSuave)),
                 ],
+              ),
+            ),
+            // Demonstração: simula o celular perdendo sinal/GPS para ver o aviso no app dos pais.
+            CupertinoButton(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              onPressed: store.alternarSinalFraco,
+              child: Icon(
+                store.sinalFraco ? CupertinoIcons.wifi_slash : CupertinoIcons.antenna_radiowaves_left_right,
+                color: store.sinalFraco ? p.laranja : p.cinza,
               ),
             ),
             CupertinoButton(
@@ -288,25 +315,61 @@ class _ACaminho extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final store = VanScope.of(context);
     final p = context.cores;
     final faltam = (viagem.paradas.indexOf(parada) - viagem.posicao).clamp(0.0, 99.0);
+    final casa = parada.tipo == TipoParada.casa;
+    final avisada = parada.alunoIds.any(store.aproximacaoAvisada.containsKey);
     return Cartao(
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          IconeApp(CupertinoIcons.location_fill, cor: p.azul, tamanho: 44),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('A caminho de', style: TextStyle(color: p.textoSuave, fontSize: 13)),
-                Text(parada.titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-                Text(parada.subtitulo, style: TextStyle(color: p.textoSuave)),
-              ],
-            ),
+          Row(
+            children: [
+              IconeApp(CupertinoIcons.location_fill, cor: p.azul, tamanho: 44),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('A caminho de', style: TextStyle(color: p.textoSuave, fontSize: 13)),
+                    Text(parada.titulo, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                    Text(parada.subtitulo, style: TextStyle(color: p.textoSuave)),
+                  ],
+                ),
+              ),
+              Text('${(faltam * 4).ceil().clamp(1, 99)} min',
+                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: p.azul)),
+            ],
           ),
-          Text('${(faltam * 4).ceil().clamp(1, 99)} min',
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: p.azul)),
+          if (casa) ...[
+            const SizedBox(height: 12),
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 250),
+              child: avisada
+                  ? Row(
+                      key: const ValueKey('avisada'),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(CupertinoIcons.checkmark_seal_fill, color: p.verde, size: 18),
+                        const SizedBox(width: 6),
+                        Text('Família avisada que você está chegando',
+                            style: TextStyle(color: p.verde, fontWeight: FontWeight.w600)),
+                      ],
+                    )
+                  : Botao(
+                      'Avisar que estou chegando',
+                      key: const ValueKey('avisar'),
+                      compacto: true,
+                      estilo: EstiloBotao.secundario,
+                      icone: CupertinoIcons.bell_fill,
+                      aoTocar: () {
+                        HapticFeedback.mediumImpact();
+                        store.notificarAproximacao(parada);
+                      },
+                    ),
+            ),
+          ],
         ],
       ),
     );

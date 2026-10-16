@@ -143,10 +143,7 @@ class _ProximaViagem extends StatelessWidget {
             emAndamento ? 'Abrir viagem' : 'Iniciar viagem',
             icone: emAndamento ? CupertinoIcons.map_fill : CupertinoIcons.play_fill,
             estilo: EstiloBotao.claro,
-            aoTocar: () {
-              if (!emAndamento) store.iniciarViagem(t);
-              abrirViagem(context);
-            },
+            aoTocar: () => emAndamento ? abrirViagem(context) : iniciarViagemComCuidado(context, t),
           ),
         ],
       ),

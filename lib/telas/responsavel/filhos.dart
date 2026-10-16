@@ -20,11 +20,13 @@ class FilhosTela extends StatelessWidget {
 
     return PaginaIOS(
       titulo: 'Filhos',
-      acao: CupertinoButton(
-        padding: EdgeInsets.zero,
-        onPressed: () => abrirFolha(context, const ConectarVan()),
-        child: Icon(CupertinoIcons.add_circled_solid, size: 28, color: p.azul),
-      ),
+      acao: !store.podeAgir
+          ? null
+          : CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => abrirFolha(context, const ConectarVan()),
+              child: Icon(CupertinoIcons.add_circled_solid, size: 28, color: p.azul),
+            ),
       filhos: [
         for (final f in filhos) ...[_CartaoFilho(aluno: f), const SizedBox(height: 14)],
         if (pendentes.isNotEmpty)
@@ -39,17 +41,18 @@ class FilhosTela extends StatelessWidget {
                 ),
             ],
           ),
-        Secao(
-          filhos: [
-            Linha(
-              inicio: IconeApp(CupertinoIcons.paperplane_fill, cor: p.azul),
-              titulo: 'Adicionar filho com convite',
-              subtitulo: 'Use o link ou o código que o motorista enviou',
-              corTitulo: p.azul,
-              aoTocar: () => abrirFolha(context, const ConectarVan()),
-            ),
-          ],
-        ),
+        if (store.podeAgir)
+          Secao(
+            filhos: [
+              Linha(
+                inicio: IconeApp(CupertinoIcons.paperplane_fill, cor: p.azul),
+                titulo: 'Adicionar filho com convite',
+                subtitulo: 'Use o link ou o código que o motorista enviou',
+                corTitulo: p.azul,
+                aoTocar: () => abrirFolha(context, const ConectarVan()),
+              ),
+            ],
+          ),
         const SizedBox(height: 90),
       ],
     );

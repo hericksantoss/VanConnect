@@ -32,6 +32,12 @@ class VanStore extends ChangeNotifier {
     for (final id in filhosDoResponsavel) {
       aluno(id).familiaConectada = true;
     }
+    // Demonstração: o auxiliar está com a Azulzinha na rua agora.
+    execucoesRemotas['v2'] = ExecucaoRemota(
+      quem: 'Paulo (auxiliar)',
+      desde: DateTime.now().subtract(const Duration(minutes: 25)),
+      trajetoNome: 'Tarde · Ida',
+    );
     final amanha = soData(DateTime.now()).add(const Duration(days: 1));
     ausencias.add(Ausencia(
       id: 'aus0',
@@ -50,6 +56,9 @@ class VanStore extends ChangeNotifier {
   /// Posição da van, atualizada a cada quadro da simulação. Só o mapa escuta;
   /// o restante da interface reconstrói apenas em mudanças de estado.
   final posicaoVan = ValueNotifier<double>(-1);
+
+  /// A posição que as famílias recebem (pode ficar para trás se o sinal cair).
+  final posicaoCompartilhada = ValueNotifier<double>(-1);
   final String nomeMotorista = 'Rogério Nunes';
   final String codigoVan = Semente.codigoVan;
   final solicitacoes = <Solicitacao>[];
@@ -59,11 +68,28 @@ class VanStore extends ChangeNotifier {
   final trajetos = <Trajeto>[];
   final cobrancas = <Cobranca>[];
   final ausencias = <Ausencia>[];
-  final veiculos = <Veiculo>[Semente.veiculo];
+  final veiculos = <Veiculo>[Semente.veiculo, Semente.veiculo2];
 
   /// Van principal (a primeira cadastrada).
   Veiculo get veiculo => veiculos.first;
+  /// Sessão do responsável: quem está usando o app, quais filhos vê e o que pode fazer.
   final List<String> filhosDoResponsavel = List.of(Semente.filhosDoResponsavelDemo);
+  String nomeSessao = 'Mariana Costa';
+  String telefoneSessao = '(11) 98888-1020';
+  Escopo escopoSessao = Escopo.completo;
+
+  /// Familiar "só acompanhar" não marca ausência nem informa pagamento.
+  bool get podeAgir => escopoSessao == Escopo.completo;
+
+  void entrarDemonstracaoResponsavel() {
+    filhosDoResponsavel
+      ..clear()
+      ..addAll(Semente.filhosDoResponsavelDemo);
+    nomeSessao = 'Mariana Costa';
+    telefoneSessao = '(11) 98888-1020';
+    escopoSessao = Escopo.completo;
+    escolherPerfil(Perfil.responsavel);
+  }
   final Set<String> concluidosHoje = {};
 
   // Preferências do motorista.
@@ -160,15 +186,25 @@ class VanStore extends ChangeNotifier {
   }
 
   /// Gera (ou reaproveita) o convite de uso único para estes alunos.
-  Convite gerarConvite(List<String> alunoIds) {
+  Convite gerarConvite(List<String> alunoIds, {Escopo escopo = Escopo.completo, String? nomeConvidado}) {
     final ids = [...{...alunoIds}]..sort();
-    final existente = conviteAtivoDe(ids.first);
+    final nome = (nomeConvidado == null || nomeConvidado.trim().isEmpty) ? null : nomeConvidado.trim();
+    final agora0 = DateTime.now();
+    Convite? mesmoTipo(String id) {
+      for (final c in convites.reversed) {
+        if (c.valido(agora0) && c.alunoIds.contains(id) && c.escopo == escopo && c.nomeConvidado == nome) return c;
+      }
+      return null;
+    }
+
+    final existente = mesmoTipo(ids.first);
     if (existente != null && ({...existente.alunoIds}.containsAll(ids)) && existente.alunoIds.length == ids.length) {
       return existente;
     }
-    // Um convite novo substitui os anteriores destes alunos.
+    // Um convite novo substitui os anteriores do mesmo tipo destes alunos
+    // (convites para outros familiares continuam valendo).
     for (final id in ids) {
-      conviteAtivoDe(id)?.cancelado = true;
+      mesmoTipo(id)?.cancelado = true;
     }
     final r = math.Random.secure();
     String codigo;
@@ -182,6 +218,8 @@ class VanStore extends ChangeNotifier {
       responsavel: aluno(ids.first).responsavel,
       criadoEm: agora,
       expiraEm: agora.add(validadeConvite),
+      escopo: escopo,
+      nomeConvidado: nome,
     );
     convites.add(c);
     notifyListeners();
@@ -215,6 +253,23 @@ class VanStore extends ChangeNotifier {
     return c.alunoIds.map(aluno).toList();
   }
 
+  /// O convite também é o login: abre uma sessão nova só com os filhos do convite.
+  List<Aluno> entrarComConvite(Convite c) {
+    c.aceitoEm = DateTime.now();
+    filhosDoResponsavel
+      ..clear()
+      ..addAll(c.alunoIds);
+    for (final id in c.alunoIds) {
+      aluno(id).familiaConectada = true;
+    }
+    nomeSessao = c.nomeConvidado ?? c.responsavel.nome;
+    telefoneSessao = c.nomeConvidado == null ? c.responsavel.telefone : '';
+    escopoSessao = c.escopo;
+    perfil = Perfil.responsavel;
+    notifyListeners();
+    return c.alunoIds.map(aluno).toList();
+  }
+
   void cancelarConvite(Convite c) {
     c.cancelado = true;
     notifyListeners();
@@ -223,7 +278,7 @@ class VanStore extends ChangeNotifier {
   String mensagemConvite(Convite c) {
     final nomes = c.alunoIds.map((id) => aluno(id).primeiro).toList();
     final quem = nomes.length == 1 ? nomes.first : '${nomes.sublist(0, nomes.length - 1).join(', ')} e ${nomes.last}';
-    return 'Olá, ${primeiroNome(c.responsavel.nome)}! Aqui é ${primeiroNome(nomeMotorista)}, da van escolar 🚐\n'
+    return 'Olá, ${primeiroNome(c.nomeConvidado ?? c.responsavel.nome)}! Aqui é ${primeiroNome(nomeMotorista)}, da van escolar 🚐\n'
         'Para acompanhar $quem ao vivo e avisar ausências pelo Van Connect, toque no link:\n'
         '${c.link}\n\n'
         'Ou abra o app e digite o código ${c.codigoFormatado} (válido até ${dataCurta(c.expiraEm)}).';
@@ -430,20 +485,94 @@ class VanStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  void avisarAusencia({required String alunoId, required DateTime data, Sentido? sentido, String motivo = ''}) {
-    ausencias.add(Ausencia(id: 'aus${_seq++}', alunoId: alunoId, data: soData(data), sentido: sentido, motivo: motivo));
+  /// A ausência (e a volta atrás) só pode mudar antes da rota daquele sentido começar.
+  bool ausenciaTravada(String alunoId, DateTime dia, Sentido sentido) {
+    if (!mesmoDia(dia, DateTime.now())) return false;
     final v = viagem;
-    if (v != null && !v.encerrada && mesmoDia(data, DateTime.now()) && (sentido == null || sentido == v.trajeto.sentido)) {
-      if (v.situacoes[alunoId] == SituacaoAluno.aguardando) {
-        v.situacoes[alunoId] = SituacaoAluno.avisado;
-        v.eventos.insert(0, EventoViagem(TipoEvento.aviso, '${aluno(alunoId).primeiro} não vai hoje (avisado pelo responsável)', alunoId: alunoId));
-      }
+    for (final t in trajetos) {
+      if (t.sentido != sentido || !alunosDoDia(t).any((a) => a.id == alunoId)) continue;
+      if (concluidosHoje.contains(t.id)) return true;
+      if (v != null && !v.encerrada && v.trajeto.id == t.id) return true;
+    }
+    return false;
+  }
+
+  /// Registra a ausência nos sentidos ainda liberados. Retorna os sentidos aceitos
+  /// (vazio = a rota já começou e é preciso falar direto com o motorista).
+  List<Sentido> avisarAusencia({required String alunoId, required DateTime data, Sentido? sentido, String motivo = ''}) {
+    final pedidos = sentido == null ? Sentido.values : [sentido];
+    final liberados = pedidos.where((x) => !ausenciaTravada(alunoId, data, x)).toList();
+    if (liberados.isEmpty) return liberados;
+    ausencias.add(Ausencia(
+      id: 'aus${_seq++}',
+      alunoId: alunoId,
+      data: soData(data),
+      sentido: liberados.length == Sentido.values.length ? null : liberados.single,
+      motivo: motivo,
+    ));
+    notifyListeners();
+    return liberados;
+  }
+
+  /// "Marcar presença": desfaz a ausência, se a rota ainda não começou.
+  bool removerAusencia(Ausencia a) {
+    final sentidos = a.sentido == null ? Sentido.values : [a.sentido!];
+    if (sentidos.any((x) => ausenciaTravada(a.alunoId, a.data, x))) return false;
+    ausencias.remove(a);
+    notifyListeners();
+    return true;
+  }
+
+  // ------------------------------------------------------- rota do dia
+
+  /// Ajustes de hoje, por rota. Zeram sozinhos quando o dia muda.
+  final _ajustes = <String, AjusteDoDia>{};
+  DateTime _diaDosAjustes = soData(DateTime.now());
+
+  AjusteDoDia ajusteDeHoje(Trajeto t) {
+    final hoje = soData(DateTime.now());
+    if (hoje != _diaDosAjustes) {
+      _ajustes.clear();
+      _diaDosAjustes = hoje;
+    }
+    return _ajustes.putIfAbsent(t.id, AjusteDoDia.new);
+  }
+
+  /// Quem vai hoje: a rota padrão, menos quem saiu só hoje, mais quem entrou só hoje.
+  List<Aluno> alunosDoDia(Trajeto t) {
+    final ajuste = ajusteDeHoje(t);
+    final base = alunosDo(t).where((a) => !ajuste.removidos.contains(a.id));
+    final extras = ajuste.incluidos.where((id) => !t.alunoIds.contains(id)).map(aluno).where((a) => a.ativo);
+    return [...base, ...extras];
+  }
+
+  /// Liga/desliga um aluno só na rota de hoje.
+  void alternarAlunoHoje(Trajeto t, String alunoId) {
+    final ajuste = ajusteDeHoje(t);
+    final naPadrao = t.alunoIds.contains(alunoId);
+    final vaiHoje = alunosDoDia(t).any((a) => a.id == alunoId);
+    if (vaiHoje) {
+      naPadrao ? ajuste.removidos.add(alunoId) : ajuste.incluidos.remove(alunoId);
+    } else {
+      naPadrao ? ajuste.removidos.remove(alunoId) : ajuste.incluidos.add(alunoId);
     }
     notifyListeners();
   }
 
-  void removerAusencia(Ausencia a) {
-    ausencias.remove(a);
+  void desfazerAjustesDeHoje(Trajeto t) {
+    _ajustes.remove(t.id);
+    notifyListeners();
+  }
+
+  /// Transforma a rota de hoje na nova rota padrão.
+  void salvarDiaComoPadrao(Trajeto t) {
+    final ajuste = ajusteDeHoje(t);
+    t.alunoIds.removeWhere(ajuste.removidos.contains);
+    for (final id in ajuste.incluidos) {
+      if (!t.alunoIds.contains(id)) t.alunoIds.add(id);
+    }
+    _ajustes.remove(t.id);
+    otimizarOrdem(t, notificar: false);
     notifyListeners();
   }
 
@@ -658,7 +787,7 @@ class VanStore extends ChangeNotifier {
   List<Parada> _montarParadas(Trajeto t, Map<String, SituacaoAluno> situacoes) {
     final casas = <Parada>[];
     final porEndereco = <Offset, List<Aluno>>{};
-    for (final a in alunosDo(t)) {
+    for (final a in alunosDoDia(t)) {
       if (situacoes[a.id] == SituacaoAluno.avisado) continue;
       porEndereco.putIfAbsent(a.posicao, () => []).add(a);
     }
@@ -671,7 +800,7 @@ class VanStore extends ChangeNotifier {
         alunoIds: grupo.map((a) => a.id).toList(),
       ));
     }
-    final presentes = alunosDo(t).where((a) => situacoes[a.id] != SituacaoAluno.avisado);
+    final presentes = alunosDoDia(t).where((a) => situacoes[a.id] != SituacaoAluno.avisado);
     final paradasEscola = t.escolaIds.map((id) {
       final e = escola(id);
       return Parada(
@@ -686,10 +815,40 @@ class VanStore extends ChangeNotifier {
     return t.sentido == Sentido.ida ? [...casas, ...paradasEscola] : [...paradasEscola, ...casas];
   }
 
+  // ------------------------------------------- execução em outro aparelho
+
+  /// Vans sendo usadas por outro celular agora (na demonstração: o auxiliar Paulo).
+  final execucoesRemotas = <String, ExecucaoRemota>{};
+
+  /// Motivo para pedir confirmação antes de iniciar (null = pode iniciar direto).
+  String? conflitoAoIniciar(Trajeto t) {
+    final v = viagem;
+    if (v != null && !v.encerrada && v.trajeto.id != t.id) {
+      return 'Você já está em viagem (${v.trajeto.nome}). Ela será encerrada para iniciar ${t.nome}.';
+    }
+    final remota = execucoesRemotas[t.veiculoId];
+    if (remota != null) {
+      return 'Parece que ${remota.quem} já está executando "${remota.trajetoNome}" nesta van desde ${hora(remota.desde)}. '
+          'Iniciar aqui também pode confundir a localização e os avisos das famílias.';
+    }
+    return null;
+  }
+
+  /// Este aparelho assume a van; o outro deixa de transmitir.
+  void assumirVan(String veiculoId) {
+    execucoesRemotas.remove(veiculoId);
+    notifyListeners();
+  }
+
   void iniciarViagem(Trajeto t) {
     encerrarViagem(silencioso: true);
+    execucoesRemotas.remove(t.veiculoId);
+    sinalFraco = false;
+    localizacaoAtrasada = false;
+    ultimaLocalizacaoEm = DateTime.now();
+    aproximacaoAvisada.clear();
     final situacoes = <String, SituacaoAluno>{
-      for (final a in alunosDo(t))
+      for (final a in alunosDoDia(t))
         a.id: ausenciaHoje(a.id, t.sentido) != null ? SituacaoAluno.avisado : SituacaoAluno.aguardando,
     };
     final v = Viagem(trajeto: t, paradas: _montarParadas(t, situacoes), situacoes: situacoes);
@@ -700,19 +859,81 @@ class VanStore extends ChangeNotifier {
     }
     viagem = v;
     posicaoVan.value = v.posicao;
+    posicaoCompartilhada.value = v.posicao;
     _anunciarProxima(v);
     _relogio = Timer.periodic(const Duration(milliseconds: 50), (_) => _avancar());
     notifyListeners();
   }
 
+  // ------------------------------------------------ sinal e aproximação
+
+  /// Demonstração: simula o celular do motorista sem internet/GPS.
+  bool sinalFraco = false;
+  DateTime? ultimaLocalizacaoEm;
+  bool localizacaoAtrasada = false;
+  static const limiteAtraso = Duration(seconds: 20);
+
+  void alternarSinalFraco() {
+    sinalFraco = !sinalFraco;
+    if (!sinalFraco) _enviarLocalizacao();
+    notifyListeners();
+  }
+
+  void _enviarLocalizacao() {
+    final v = viagem;
+    if (v == null) return;
+    ultimaLocalizacaoEm = DateTime.now();
+    posicaoCompartilhada.value = v.posicao;
+    if (localizacaoAtrasada) {
+      localizacaoAtrasada = false;
+      notifyListeners();
+    }
+  }
+
+  /// Segundos desde a última localização recebida pelas famílias.
+  int get segundosSemLocalizacao =>
+      ultimaLocalizacaoEm == null ? 0 : DateTime.now().difference(ultimaLocalizacaoEm!).inSeconds;
+
+  /// Aviso manual do motorista: "estou chegando".
+  final aproximacaoAvisada = <String, DateTime>{};
+
+  void notificarAproximacao(Parada p) {
+    final v = viagem;
+    if (v == null) return;
+    for (final id in p.alunoIds) {
+      aproximacaoAvisada[id] = DateTime.now();
+    }
+    v.eventos.insert(0, EventoViagem(TipoEvento.aviso, 'Responsáveis de ${p.titulo} avisados: van chegando'));
+    notifyListeners();
+  }
+
+  /// Paradas que a van ainda faz antes da casa do aluno (null = não se aplica).
+  int? paradasAte(String alunoId) {
+    final v = viagem;
+    if (v == null || v.encerrada) return null;
+    final idx = v.paradas.indexWhere((p) => p.tipo == TipoParada.casa && p.alunoIds.contains(alunoId));
+    if (idx < 0) return null;
+    final proxima = v.emMovimento ? v.posicao.floor() + 1 : v.posicao.round();
+    return math.max(0, idx - proxima);
+  }
+
   void _avancar() {
     final v = viagem;
-    if (v == null || v.encerrada || !v.emMovimento) return;
+    if (v == null || v.encerrada) return;
     final alvo = v.posicao.floor() + 1;
-    if (alvo >= v.paradas.length) return;
-    v.posicao = math.min(alvo.toDouble(), v.posicao + 0.012 * velocidadeSimulacao);
-    posicaoVan.value = v.posicao;
-    if (v.posicao >= alvo) {
+    final andando = v.emMovimento && alvo < v.paradas.length;
+    if (andando) {
+      v.posicao = math.min(alvo.toDouble(), v.posicao + 0.012 * velocidadeSimulacao);
+      posicaoVan.value = v.posicao;
+    }
+    // A cada quadro o celular "envia" a localização; sem sinal, as famílias param de receber.
+    if (!sinalFraco) {
+      _enviarLocalizacao();
+    } else if (!localizacaoAtrasada && segundosSemLocalizacao >= limiteAtraso.inSeconds) {
+      localizacaoAtrasada = true;
+      notifyListeners();
+    }
+    if (andando && v.posicao >= alvo) {
       v.emMovimento = false;
       final p = v.paradas[alvo];
       v.eventos.insert(0, EventoViagem(TipoEvento.chegada, 'Chegou em ${p.tipo == TipoParada.casa ? 'casa de ' : ''}${p.titulo}'));
@@ -831,6 +1052,7 @@ class VanStore extends ChangeNotifier {
   void dispose() {
     tema.dispose();
     posicaoVan.dispose();
+    posicaoCompartilhada.dispose();
     _relogio?.cancel();
     _seguirDepois?.cancel();
     super.dispose();

@@ -7,8 +7,24 @@ import '../../componentes/ui.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/van_store.dart';
 
-Future<void> avisarAusencia(BuildContext context, {String? alunoId}) =>
-    abrirFolha(context, _FolhaAusencia(alunoId: alunoId));
+Future<void> avisarAusencia(BuildContext context, {String? alunoId}) => abrirFolha(context, _FolhaAusencia(alunoId: alunoId));
+
+/// Desfaz a ausência, se a rota ainda não começou. Retorna se conseguiu.
+bool marcarPresenca(BuildContext context, Ausencia a) {
+  final store = VanScope.read(context);
+  final p = context.cores;
+  if (store.removerAusencia(a)) {
+    avisar(context, 'Presença confirmada: ${store.aluno(a.alunoId).primeiro} volta para a rota', icone: CupertinoIcons.checkmark_seal_fill);
+    return true;
+  }
+  avisar(
+    context,
+    'A rota já começou. Para mudar hoje, fale direto com o motorista.',
+    icone: CupertinoIcons.info_circle_fill,
+    cor: p.laranja,
+  );
+  return false;
+}
 
 class AvisosTela extends StatelessWidget {
   const AvisosTela({super.key});
@@ -17,8 +33,7 @@ class AvisosTela extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = VanScope.of(context);
     final p = context.cores;
-    final lista = store.filhosDoResponsavel.expand(store.ausenciasFuturasDe).toList()
-      ..sort((a, b) => a.data.compareTo(b.data));
+    final lista = store.filhosDoResponsavel.expand(store.ausenciasFuturasDe).toList()..sort((a, b) => a.data.compareTo(b.data));
 
     final v = store.viagem;
     final ids = store.filhosDoResponsavel.toSet();
@@ -26,37 +41,47 @@ class AvisosTela extends StatelessWidget {
     final feed = v == null
         ? <EventoViagem>[]
         : v.eventos
-            .where((e) =>
-                ids.contains(e.alunoId) ||
-                e.tipo == TipoEvento.partida ||
-                e.tipo == TipoEvento.fim ||
-                e.tipo == TipoEvento.emergencia ||
-                (e.tipo == TipoEvento.aviso && nomes.any(e.texto.contains)))
-            .take(12)
-            .toList();
+              .where(
+                (e) =>
+                    ids.contains(e.alunoId) ||
+                    e.tipo == TipoEvento.partida ||
+                    e.tipo == TipoEvento.fim ||
+                    e.tipo == TipoEvento.emergencia ||
+                    (e.tipo == TipoEvento.aviso && nomes.any(e.texto.contains)),
+              )
+              .take(12)
+              .toList();
 
     return PaginaIOS(
       titulo: 'Avisos',
-      acao: CupertinoButton(
-        padding: EdgeInsets.zero,
-        onPressed: () => avisarAusencia(context),
-        child: Icon(CupertinoIcons.add_circled_solid, size: 28, color: p.azul),
-      ),
-      filhos: [
-        Cartao(
-          aoTocar: () => avisarAusencia(context),
-          child: Row(children: [
-            IconeApp(CupertinoIcons.calendar_badge_minus, cor: p.laranja, tamanho: 44),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Avisar que não vai', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-                Text('A van já sai sem passar na sua casa.', style: TextStyle(color: p.textoSuave)),
-              ]),
+      acao: !store.podeAgir
+          ? null
+          : CupertinoButton(
+              padding: EdgeInsets.zero,
+              onPressed: () => avisarAusencia(context),
+              child: Icon(CupertinoIcons.add_circled_solid, size: 28, color: p.azul),
             ),
-            Icon(CupertinoIcons.chevron_right, color: p.cinza, size: 18),
-          ]),
-        ),
+      filhos: [
+        if (store.podeAgir)
+          Cartao(
+            aoTocar: () => avisarAusencia(context),
+            child: Row(
+              children: [
+                IconeApp(CupertinoIcons.calendar_badge_minus, cor: p.laranja, tamanho: 44),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Avisar que não vai', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
+                      Text('A van já sai sem passar na sua casa.', style: TextStyle(color: p.textoSuave)),
+                    ],
+                  ),
+                ),
+                Icon(CupertinoIcons.chevron_right, color: p.cinza, size: 18),
+              ],
+            ),
+          ),
         if (feed.isNotEmpty)
           Secao(
             titulo: 'Hoje',
@@ -80,37 +105,42 @@ class AvisosTela extends StatelessWidget {
                   ),
                   titulo: e.texto
                       .replaceFirst('Responsáveis de ', 'Aviso: ')
-                      .replaceFirst(' avisados: van a caminho', ' — van a caminho'),
+                      .replaceFirst(' avisados: van a caminho', ' — van a caminho')
+                      .replaceFirst(' avisados: van chegando', ' — van chegando'),
                   fim: Text(hora(e.quando), style: TextStyle(color: p.textoSuave, fontSize: 13)),
                 ),
             ],
           ),
         if (lista.isEmpty)
-          Secao(titulo: 'Ausências', filhos: [
-            Linha(
-              inicio: IconeApp(CupertinoIcons.calendar, cor: p.cinza),
-              titulo: 'Nenhuma ausência marcada',
-            ),
-          ])
+          Secao(
+            titulo: 'Ausências',
+            filhos: [
+              Linha(
+                inicio: IconeApp(CupertinoIcons.calendar, cor: p.cinza),
+                titulo: 'Nenhuma ausência marcada',
+              ),
+            ],
+          )
         else
           Secao(
             titulo: 'Ausências marcadas',
-            rodape: 'Deslize para a esquerda para cancelar.',
+            rodape: store.podeAgir ? 'Deslize para a esquerda para marcar presença. Depois que a rota começa, só pelo motorista.' : null,
             filhos: [
               for (final a in lista)
                 Dismissible(
                   key: ValueKey(a.id),
-                  direction: DismissDirection.endToStart,
+                  direction: store.podeAgir ? DismissDirection.endToStart : DismissDirection.none,
                   background: Container(
-                    color: p.vermelho,
+                    color: p.verde,
                     alignment: Alignment.centerRight,
                     padding: const EdgeInsets.only(right: 20),
-                    child: const Text('Cancelar', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                    child: const Text(
+                      'Marcar presença',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
                   ),
-                  onDismissed: (_) {
-                    store.removerAusencia(a);
-                    avisar(context, 'Aviso cancelado', icone: CupertinoIcons.arrow_uturn_left);
-                  },
+                  // Só some da lista se ainda estiver no prazo.
+                  confirmDismiss: (_) async => marcarPresenca(context, a),
                   child: Linha(
                     inicio: Avatar(store.aluno(a.alunoId).nome, tamanho: 36),
                     titulo: '${store.aluno(a.alunoId).primeiro} · ${capitalizar(dataExtenso(a.data))}',
@@ -167,9 +197,7 @@ class _FolhaAusenciaState extends State<_FolhaAusencia> {
           aoMudar(v ?? valor);
           setState(() {});
         },
-        children: {
-          for (final e in opcoes.entries) e.key: Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(e.value)),
-        },
+        children: {for (final e in opcoes.entries) e.key: Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(e.value))},
       ),
     );
   }
@@ -231,15 +259,40 @@ class _FolhaAusenciaState extends State<_FolhaAusencia> {
               aoTocar: _quem.isEmpty
                   ? null
                   : () {
+                      final pedido = switch (_sentido) {
+                        1 => Sentido.ida,
+                        2 => Sentido.volta,
+                        _ => null,
+                      };
+                      final aceitos = <Sentido>{};
                       for (final id in _quem) {
-                        store.avisarAusencia(
-                          alunoId: id,
-                          data: _data,
-                          sentido: switch (_sentido) { 1 => Sentido.ida, 2 => Sentido.volta, _ => null },
-                        );
+                        aceitos.addAll(store.avisarAusencia(alunoId: id, data: _data, sentido: pedido));
                       }
                       Navigator.pop(context);
-                      avisar(context, '${primeiroNome(store.nomeMotorista)} foi avisado. Obrigado! 💛', icone: CupertinoIcons.paperplane_fill, cor: p.azul);
+                      final pedidos = pedido == null ? Sentido.values.toSet() : {pedido};
+                      if (aceitos.isEmpty) {
+                        // Prazo: depois que a rota começa, a mudança tem que ser combinada direto.
+                        avisar(
+                          context,
+                          'A rota já começou. Para hoje, fale direto com o motorista.',
+                          icone: CupertinoIcons.info_circle_fill,
+                          cor: p.laranja,
+                        );
+                      } else if (aceitos.length < pedidos.length) {
+                        avisar(
+                          context,
+                          'Avisado só para a ${aceitos.first.rotulo.toLowerCase()}: a outra rota já começou.',
+                          icone: CupertinoIcons.info_circle_fill,
+                          cor: p.laranja,
+                        );
+                      } else {
+                        avisar(
+                          context,
+                          '${primeiroNome(store.nomeMotorista)} foi avisado. Obrigado! 💛',
+                          icone: CupertinoIcons.paperplane_fill,
+                          cor: p.azul,
+                        );
+                      }
                     },
             ),
           ],

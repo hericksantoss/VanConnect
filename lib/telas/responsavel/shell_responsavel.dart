@@ -22,12 +22,12 @@ class ShellResponsavel extends StatefulWidget {
 class _ShellResponsavelState extends State<ShellResponsavel> {
   int _aba = 0;
 
-  static const _tutoriais = ['mapa', 'filhos', 'avisos', 'pagamentos', 'ajustes'];
+  List<String> _abas(VanStore store) => ['mapa', 'filhos', 'avisos', if (store.podeAgir) 'pagamentos', 'ajustes'];
 
   void _irPara(int aba) {
     if (aba == _aba) return;
     setState(() => _aba = aba);
-    Tutoriais.aoAbrirAba(context, 'responsavel.${_tutoriais[aba]}');
+    Tutoriais.aoAbrirAba(context, 'responsavel.${_abas(VanScope.read(context))[aba]}');
   }
 
   @override
@@ -43,37 +43,46 @@ class _ShellResponsavelState extends State<ShellResponsavel> {
     return Scaffold(
       extendBody: true,
       body: IndexedStack(
-        index: _aba,
-        children: const [MapaPrincipalTela(), FilhosTela(), AvisosTela(), PagamentosTela(), AjustesResponsavelTela()],
+        index: _aba.clamp(0, _abas(store).length - 1),
+        children: [
+          const MapaPrincipalTela(),
+          const FilhosTela(),
+          const AvisosTela(),
+          if (store.podeAgir) const PagamentosTela(),
+          const AjustesResponsavelTela(),
+        ],
       ),
       bottomNavigationBar: BarraAbas(
-        indice: _aba,
+        indice: _aba.clamp(0, _abas(store).length - 1),
         aoMudar: _irPara,
         itens: [
           const BottomNavigationBarItem(icon: Icon(CupertinoIcons.map), activeIcon: Icon(CupertinoIcons.map_fill), label: 'Mapa'),
           const BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.person_2), activeIcon: Icon(CupertinoIcons.person_2_fill), label: 'Filhos'),
+            icon: Icon(CupertinoIcons.person_2),
+            activeIcon: Icon(CupertinoIcons.person_2_fill),
+            label: 'Filhos',
+          ),
           BottomNavigationBarItem(
-            icon: Badge(
-              isLabelVisible: store.emergenciaEm != null,
-              backgroundColor: p.vermelho,
-              child: const Icon(CupertinoIcons.bell),
-            ),
+            icon: Badge(isLabelVisible: store.emergenciaEm != null, backgroundColor: p.vermelho, child: const Icon(CupertinoIcons.bell)),
             activeIcon: const Icon(CupertinoIcons.bell_fill),
             label: 'Avisos',
           ),
-          BottomNavigationBarItem(
-            icon: Badge(
-              isLabelVisible: abertas > 0,
-              label: Text('$abertas'),
-              backgroundColor: p.vermelho,
-              child: const Icon(CupertinoIcons.creditcard),
+          if (store.podeAgir)
+            BottomNavigationBarItem(
+              icon: Badge(
+                isLabelVisible: abertas > 0,
+                label: Text('$abertas'),
+                backgroundColor: p.vermelho,
+                child: const Icon(CupertinoIcons.creditcard),
+              ),
+              activeIcon: const Icon(CupertinoIcons.creditcard_fill),
+              label: 'Pagamentos',
             ),
-            activeIcon: const Icon(CupertinoIcons.creditcard_fill),
-            label: 'Pagamentos',
-          ),
           const BottomNavigationBarItem(
-              icon: Icon(CupertinoIcons.gear_alt), activeIcon: Icon(CupertinoIcons.gear_alt_fill), label: 'Ajustes'),
+            icon: Icon(CupertinoIcons.gear_alt),
+            activeIcon: Icon(CupertinoIcons.gear_alt_fill),
+            label: 'Ajustes',
+          ),
         ],
       ),
     );

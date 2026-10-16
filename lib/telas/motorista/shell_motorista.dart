@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../componentes/ui.dart';
 import '../../app/tema.dart';
+import '../../dominio/modelos.dart';
 import '../../estado/van_store.dart';
 import '../../tutoriais/tutoriais.dart';
 import 'financeiro.dart';
@@ -106,6 +107,34 @@ class _ShellMotoristaState extends State<ShellMotorista> {
     );
   }
 }
+
+/// Inicia a viagem conferindo antes se a van já está em uso (outro aparelho ou outra viagem).
+Future<void> iniciarViagemComCuidado(BuildContext context, Trajeto t, {bool fecharTelaAtual = false}) async {
+  final store = VanScope.read(context);
+  final conflito = store.conflitoAoIniciar(t);
+  if (conflito != null) {
+    final ok = await confirmar(context, titulo: 'Iniciar mesmo assim?', mensagem: conflito, acao: 'Iniciar aqui', destrutiva: true);
+    if (!ok || !context.mounted) return;
+    store.assumirVan(t.veiculoId);
+  }
+  store.iniciarViagem(t);
+  if (!context.mounted) return;
+  if (fecharTelaAtual) {
+    Navigator.of(context).pushReplacement(_rotaViagem());
+  } else {
+    abrirViagem(context);
+  }
+}
+
+PageRouteBuilder<void> _rotaViagem() => PageRouteBuilder(
+      transitionDuration: const Duration(milliseconds: 420),
+      reverseTransitionDuration: const Duration(milliseconds: 320),
+      pageBuilder: (_, _, _) => const ViagemTela(),
+      transitionsBuilder: (_, anim, _, child) => SlideTransition(
+        position: Tween(begin: const Offset(0, 1), end: Offset.zero).chain(CurveTween(curve: Curves.easeOutCubic)).animate(anim),
+        child: child,
+      ),
+    );
 
 void abrirViagem(BuildContext context) {
   Navigator.of(context).push(

@@ -331,7 +331,15 @@ class Convite {
     required this.responsavel,
     required this.criadoEm,
     required this.expiraEm,
+    this.escopo = Escopo.completo,
+    this.nomeConvidado,
   });
+
+  /// O que quem aceitar poderá fazer.
+  final Escopo escopo;
+
+  /// Nome de um familiar diferente do responsável cadastrado (ex.: "Avó Lúcia").
+  final String? nomeConvidado;
 
   /// Seis caracteres sem ambiguidades (sem 0/O, 1/I), ex.: "K7P2QX".
   final String codigo;
@@ -348,4 +356,31 @@ class Convite {
   String get link => 'https://vanconnect.app/c/$codigo';
 
   bool valido(DateTime agora) => !cancelado && aceitoEm == null && agora.isBefore(expiraEm);
+}
+
+/// O que cada familiar pode fazer no app.
+enum Escopo {
+  completo('Ver e agir', 'Acompanha, marca ausência e informa pagamentos'),
+  leitura('Só acompanhar', 'Vê o mapa e os avisos, sem alterar nada');
+
+  const Escopo(this.rotulo, this.descricao);
+  final String rotulo;
+  final String descricao;
+}
+
+/// Outro aparelho executando uma rota nesta van (ex.: motorista auxiliar).
+class ExecucaoRemota {
+  ExecucaoRemota({required this.quem, required this.desde, required this.trajetoNome});
+
+  final String quem;
+  final DateTime desde;
+  final String trajetoNome;
+}
+
+/// Mudanças só de hoje numa rota, sem mexer na rota padrão.
+class AjusteDoDia {
+  final incluidos = <String>{};
+  final removidos = <String>{};
+
+  bool get vazio => incluidos.isEmpty && removidos.isEmpty;
 }

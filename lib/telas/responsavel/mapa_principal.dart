@@ -50,18 +50,18 @@ class _MapaPrincipalTelaState extends State<MapaPrincipalTela> {
         children: [
           Positioned.fill(
             child: MapaTrajeto(
-                // Chave muda com o contexto (filho/viagem) para reenquadrar o mapa.
-                key: ValueKey('${filho.id}-${naViagem?.trajeto.id}-${p.escuro}'),
-                controle: _controle,
-                pontos: pontos,
-                marcadores: marcadores,
-                posicaoAoVivo: naViagem == null ? null : store.posicaoVan,
-                transmitindo: naViagem != null,
-                altura: null,
-                raio: 0,
-                interativo: true,
-                margem: margem,
-              ),
+              // Chave muda com o contexto (filho/viagem) para reenquadrar o mapa.
+              key: ValueKey('${filho.id}-${naViagem?.trajeto.id}-${p.escuro}'),
+              controle: _controle,
+              pontos: pontos,
+              marcadores: marcadores,
+              posicaoAoVivo: naViagem == null ? null : store.posicaoCompartilhada,
+              transmitindo: naViagem != null,
+              altura: null,
+              raio: 0,
+              interativo: true,
+              margem: margem,
+            ),
           ),
           // Topo: escolha do filho + recentralizar
           SafeArea(
@@ -87,15 +87,16 @@ class _MapaPrincipalTelaState extends State<MapaPrincipalTela> {
                                     color: i == _filho ? p.azul : Colors.transparent,
                                     borderRadius: BorderRadius.circular(99),
                                   ),
-                                  child: Row(children: [
-                                    Avatar(f.nome, tamanho: 28),
-                                    const SizedBox(width: 6),
-                                    Text(f.primeiro,
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.w600,
-                                          color: i == _filho ? Colors.white : p.texto,
-                                        )),
-                                  ]),
+                                  child: Row(
+                                    children: [
+                                      Avatar(f.nome, tamanho: 28),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        f.primeiro,
+                                        style: TextStyle(fontWeight: FontWeight.w600, color: i == _filho ? Colors.white : p.texto),
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                           ],
@@ -103,11 +104,13 @@ class _MapaPrincipalTelaState extends State<MapaPrincipalTela> {
                       ),
                       const Spacer(),
                       Tocavel(
-                        aoTocar: () => _controle.fitCamera(CameraFit.coordinates(
-                          coordinates: [...pontos, ...marcadores.map((m) => m.posicao)].map(paraLatLng).toList(),
-                          padding: margem,
-                          maxZoom: 16,
-                        )),
+                        aoTocar: () => _controle.fitCamera(
+                          CameraFit.coordinates(
+                            coordinates: [...pontos, ...marcadores.map((m) => m.posicao)].map(paraLatLng).toList(),
+                            padding: margem,
+                            maxZoom: 16,
+                          ),
+                        ),
                         escala: 0.9,
                         child: _Vidro(
                           padding: const EdgeInsets.all(11),
@@ -116,19 +119,43 @@ class _MapaPrincipalTelaState extends State<MapaPrincipalTela> {
                       ),
                     ],
                   ),
+                  if (store.localizacaoAtrasada && naViagem != null) ...[
+                    const SizedBox(height: 10),
+                    _Vidro(
+                      raio: 18,
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Icon(CupertinoIcons.wifi_slash, color: p.laranja),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'A localização não está em tempo real (última há ${store.segundosSemLocalizacao}s). '
+                              'Pode ser sinal ou GPS do motorista; o mapa mostra a última posição recebida.',
+                              style: TextStyle(color: p.texto, fontSize: 13.5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   if (store.emergenciaEm != null && naViagem != null) ...[
                     const SizedBox(height: 10),
                     Cartao(
                       cor: p.vermelho,
                       padding: const EdgeInsets.all(14),
-                      child: Row(children: [
-                        const Icon(CupertinoIcons.exclamationmark_triangle_fill, color: Colors.white),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text('Alerta do motorista às ${hora(store.emergenciaEm!)}. Ligue para ${primeiroNome(store.nomeMotorista)}.',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                        ),
-                      ]),
+                      child: Row(
+                        children: [
+                          const Icon(CupertinoIcons.exclamationmark_triangle_fill, color: Colors.white),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Alerta do motorista às ${hora(store.emergenciaEm!)}. Ligue para ${primeiroNome(store.nomeMotorista)}.',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ],
@@ -187,6 +214,7 @@ class _PainelStatus extends StatelessWidget {
     final store = VanScope.of(context);
     final p = context.cores;
     final (icone, titulo, texto, cor, aoVivo) = _status(store, p);
+    final ausenciaHoje = store.ausenciasFuturasDe(filho.id).where((a) => mesmoDia(a.data, DateTime.now())).firstOrNull;
 
     return _Vidro(
       raio: 26,
@@ -203,16 +231,23 @@ class _PainelStatus extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     if (aoVivo)
-                      Row(children: [
-                        PontoAoVivo(cor: p.verde),
-                        const SizedBox(width: 6),
-                        Text('AO VIVO', style: TextStyle(color: p.verde, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1)),
-                      ]),
+                      Row(
+                        children: [
+                          PontoAoVivo(cor: p.verde),
+                          const SizedBox(width: 6),
+                          Text(
+                            'AO VIVO',
+                            style: TextStyle(color: p.verde, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 1),
+                          ),
+                        ],
+                      ),
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
-                      child: Text(titulo,
-                          key: ValueKey(titulo),
-                          style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -0.4, color: p.texto)),
+                      child: Text(
+                        titulo,
+                        key: ValueKey(titulo),
+                        style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -0.4, color: p.texto),
+                      ),
                     ),
                     Text(texto, style: TextStyle(color: p.textoSuave)),
                   ],
@@ -221,23 +256,39 @@ class _PainelStatus extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          Row(children: [
-            Expanded(
-              child: Botao('Não vai hoje',
-                  compacto: true,
-                  estilo: EstiloBotao.secundario,
-                  icone: CupertinoIcons.calendar_badge_minus,
-                  aoTocar: () => avisarAusencia(context, alunoId: filho.id)),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Botao('Motorista',
+          Row(
+            children: [
+              if (store.podeAgir) ...[
+                Expanded(
+                  child: ausenciaHoje == null
+                      ? Botao(
+                          'Não vai hoje',
+                          compacto: true,
+                          estilo: EstiloBotao.secundario,
+                          icone: CupertinoIcons.calendar_badge_minus,
+                          aoTocar: () => avisarAusencia(context, alunoId: filho.id),
+                        )
+                      : Botao(
+                          'Vai sim',
+                          compacto: true,
+                          estilo: EstiloBotao.secundario,
+                          icone: CupertinoIcons.arrow_uturn_left,
+                          aoTocar: () => marcarPresenca(context, ausenciaHoje),
+                        ),
+                ),
+                const SizedBox(width: 10),
+              ],
+              Expanded(
+                child: Botao(
+                  'Motorista',
                   compacto: true,
                   estilo: EstiloBotao.secundario,
                   icone: CupertinoIcons.phone_fill,
-                  aoTocar: () => avisar(context, 'Ligaria para ${store.nomeMotorista} (protótipo)', icone: CupertinoIcons.phone_fill)),
-            ),
-          ]),
+                  aoTocar: () => avisar(context, 'Ligaria para ${store.nomeMotorista} (protótipo)', icone: CupertinoIcons.phone_fill),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -247,13 +298,21 @@ class _PainelStatus extends StatelessWidget {
     final v = viagem;
     if (v == null) {
       final aus = store.ausenciasFuturasDe(filho.id).where((a) => mesmoDia(a.data, DateTime.now()));
-      final proximo = store.trajetosOrdenados.where((t) => t.alunoIds.contains(filho.id) && !store.concluidosHoje.contains(t.id));
+      final proximo = store.trajetosOrdenados.where(
+        (t) => store.alunosDoDia(t).any((a) => a.id == filho.id) && !store.concluidosHoje.contains(t.id),
+      );
       if (aus.isNotEmpty) {
         return (CupertinoIcons.calendar_badge_minus, 'Ausência avisada', '${aus.first.rotuloSentido} · motorista ciente', p.laranja, false);
       }
       if (proximo.isNotEmpty) {
         final t = proximo.first;
-        return (CupertinoIcons.clock_fill, '${t.sentido.rotulo} às ${horario(t.saida)}', 'Você recebe um aviso quando a van sair.', p.azul, false);
+        return (
+          CupertinoIcons.clock_fill,
+          '${t.sentido.rotulo} às ${horario(t.saida)}',
+          'Você recebe um aviso quando a van sair.',
+          p.azul,
+          false,
+        );
       }
       return (CupertinoIcons.moon_fill, 'Sem viagens agora', '${filho.primeiro} está com você 💙', p.roxo, false);
     }
@@ -261,16 +320,46 @@ class _PainelStatus extends StatelessWidget {
     final ida = v.trajeto.sentido == Sentido.ida;
     final eta = store.previsaoMinutos(filho.id);
     final ev = v.eventos.where((e) => e.alunoId == filho.id).firstOrNull;
+    final paradas = store.paradasAte(filho.id);
+    final chegando = store.aproximacaoAvisada.containsKey(filho.id);
+    String falta(int? n) => switch (n) {
+      null => '',
+      0 => 'Você é a próxima parada',
+      1 => 'Falta 1 parada antes de você',
+      _ => 'Faltam $n paradas antes de você',
+    };
     return switch (s) {
-      SituacaoAluno.aguardando => ida
-          ? (CupertinoIcons.bus, eta == 0 ? 'A van chegou!' : 'Chega em ~$eta min',
-              eta != null && eta <= 4 ? 'Hora de descer com a mochila 🎒' : 'Acompanhe pelo mapa.', p.azul, true)
-          : (CupertinoIcons.bus, 'Aguardando a saída', 'A van está indo buscar ${filho.primeiro}.', p.azul, true),
-      SituacaoAluno.aBordo => (CupertinoIcons.person_crop_circle_fill_badge_checkmark, '${filho.primeiro} está na van',
-          ida ? 'Indo para a escola.' : 'Chega em casa em ~${eta ?? '?'} min.', p.verde, true),
-      SituacaoAluno.entregue => (CupertinoIcons.checkmark_seal_fill, ida ? 'Chegou na escola' : 'Chegou em casa',
-          'Às ${ev == null ? '--' : hora(ev.quando)}. Tudo certo 💙', p.verde, true),
-      SituacaoAluno.faltou => (CupertinoIcons.xmark_circle_fill, 'Marcado como ausente', 'Algo errado? Fale com o motorista.', p.vermelho, true),
+      SituacaoAluno.aguardando =>
+        ida
+            ? (
+                CupertinoIcons.bus,
+                chegando ? 'A van está chegando!' : (eta == 0 ? 'A van chegou!' : 'Chega em ~$eta min'),
+                chegando || (eta != null && eta <= 4) ? 'Hora de descer com a mochila 🎒' : falta(paradas),
+                chegando ? p.verde : p.azul,
+                true,
+              )
+            : (CupertinoIcons.bus, 'Aguardando a saída', 'A van está indo buscar ${filho.primeiro}.', p.azul, true),
+      SituacaoAluno.aBordo => (
+        CupertinoIcons.person_crop_circle_fill_badge_checkmark,
+        '${filho.primeiro} está na van',
+        ida ? 'Indo para a escola.' : 'Chega em ~${eta ?? '?'} min · ${falta(paradas).toLowerCase()}',
+        p.verde,
+        true,
+      ),
+      SituacaoAluno.entregue => (
+        CupertinoIcons.checkmark_seal_fill,
+        ida ? 'Chegou na escola' : 'Chegou em casa',
+        'Às ${ev == null ? '--' : hora(ev.quando)}. Tudo certo 💙',
+        p.verde,
+        true,
+      ),
+      SituacaoAluno.faltou => (
+        CupertinoIcons.xmark_circle_fill,
+        'Marcado como ausente',
+        'Algo errado? Fale com o motorista.',
+        p.vermelho,
+        true,
+      ),
       SituacaoAluno.avisado => (CupertinoIcons.calendar_badge_minus, 'Ausência avisada', 'A parada saiu da rota de hoje.', p.laranja, true),
     };
   }

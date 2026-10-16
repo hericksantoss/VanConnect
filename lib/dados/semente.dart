@@ -32,6 +32,16 @@ class Semente {
     motorista: 'Rogério Nunes',
   );
 
+  /// Segunda van, usada nas rotas da tarde pelo motorista auxiliar.
+  static Veiculo get veiculo2 => Veiculo(
+        id: 'v2',
+        apelido: 'Azulzinha',
+        modelo: 'Master Escolar · 2021',
+        placa: 'VNC-7B31',
+        capacidade: 15,
+        motorista: 'Paulo Ramos',
+      );
+
   static List<Aluno> alunos() {
     Aluno a(String id, String nome, String serie, String escola, Turno turno, Responsavel r,
             String end, Offset pos, double valor, int venc, DateTime nasc, [String cuidados = '']) =>
@@ -112,6 +122,7 @@ class Semente {
           escolaIds: ['e2'],
           alunoIds: ['a10', 'a8', 'a9'],
           garagem: const Offset(0.08, 0.90),
+          veiculoId: 'v2',
         ),
         Trajeto(
           id: 't4',
@@ -121,6 +132,7 @@ class Semente {
           escolaIds: ['e2'],
           alunoIds: ['a9', 'a8', 'a10'],
           garagem: const Offset(0.60, 0.04),
+          veiculoId: 'v2',
         ),
       ];
 

@@ -66,7 +66,7 @@ void main() {
   test('cadastros: van, escola e rota nova com alunos do turno', () {
     final store = VanStore();
     store.salvarVeiculo(apelido: 'Van 2', modelo: 'Master', placa: 'abc1d23', capacidade: 12);
-    expect(store.veiculos.length, 2);
+    expect(store.veiculos.length, 3);
     expect(store.veiculos.last.placa, 'ABC1D23');
 
     final e = store.salvarEscola(nome: 'Escola Nova', endereco: 'Rua X', entrada: 420, saida: 720);
@@ -166,6 +166,108 @@ void main() {
     test('código geral continua indo para aprovação', () {
       expect(VanStore.pareceCodigoGeral('van-4821'), isTrue);
       expect(VanStore.pareceCodigoGeral('K7P-2QX'), isFalse);
+    });
+  });
+
+  group('ideias do Van Escola', () {
+    Trajeto rota(VanStore s, String id) => s.trajetos.firstWhere((t) => t.id == id);
+
+    test('rota do dia muda só hoje e pode virar padrão', () {
+      final store = VanStore();
+      final t1 = rota(store, 't1');
+      store.alternarAlunoHoje(t1, 'a3'); // Theo não vai hoje
+      store.alternarAlunoHoje(t1, 'a8'); // Sofia vai só hoje
+      final hoje = store.alunosDoDia(t1).map((a) => a.id);
+      expect(hoje, isNot(contains('a3')));
+      expect(hoje, contains('a8'));
+      expect(t1.alunoIds, contains('a3'));
+      expect(t1.alunoIds, isNot(contains('a8')));
+
+      store.iniciarViagem(t1);
+      expect(store.viagem!.situacoes.keys, containsAll(['a8']));
+      expect(store.viagem!.situacoes.keys, isNot(contains('a3')));
+      store.descartarViagem();
+
+      store.salvarDiaComoPadrao(t1);
+      expect(t1.alunoIds, contains('a8'));
+      expect(t1.alunoIds, isNot(contains('a3')));
+      expect(store.ajusteDeHoje(t1).vazio, isTrue);
+    });
+
+    test('ausência e "marcar presença" travam quando a rota começa', () {
+      final store = VanStore();
+      final hoje = DateTime.now();
+      store.iniciarViagem(rota(store, 't1')); // manhã · ida em andamento
+
+      expect(store.avisarAusencia(alunoId: 'a3', data: hoje, sentido: Sentido.ida), isEmpty);
+      expect(store.avisarAusencia(alunoId: 'a3', data: hoje), [Sentido.volta]);
+
+      final daLaura = store.ausencias.firstWhere((a) => a.alunoId == 'a6'); // semente: ida de hoje
+      expect(store.removerAusencia(daLaura), isFalse);
+
+      final amanha = hoje.add(const Duration(days: 1));
+      expect(store.avisarAusencia(alunoId: 'a3', data: amanha), Sentido.values);
+      store.dispose();
+    });
+
+    test('paradas restantes e aviso de aproximação', () {
+      final store = VanStore();
+      store.iniciarViagem(rota(store, 't1'));
+      final v = store.viagem!;
+      expect(store.paradasAte('a1'), 0); // casa dos irmãos é a primeira parada
+      final ultimaCasa = v.paradas.lastWhere((p) => p.tipo == TipoParada.casa);
+      expect(store.paradasAte(ultimaCasa.alunoIds.first), greaterThan(0));
+
+      store.notificarAproximacao(v.paradas.first);
+      expect(store.aproximacaoAvisada.keys, containsAll(['a1', 'a2']));
+      expect(v.eventos.first.texto, contains('van chegando'));
+      store.dispose();
+    });
+
+    testWidgets('sem sinal: famílias ficam com a última posição recebida', (tester) async {
+      final store = VanStore();
+      store.iniciarViagem(rota(store, 't1'));
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(store.posicaoCompartilhada.value, store.posicaoVan.value);
+
+      store.alternarSinalFraco();
+      final congelada = store.posicaoCompartilhada.value;
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(store.posicaoVan.value, greaterThan(congelada));
+      expect(store.posicaoCompartilhada.value, congelada);
+
+      store.alternarSinalFraco();
+      expect(store.posicaoCompartilhada.value, store.posicaoVan.value);
+      store.descartarViagem();
+    });
+
+    test('bloqueio em dois aparelhos', () {
+      final store = VanStore();
+      final t3 = rota(store, 't3'); // Azulzinha, em uso pelo auxiliar na demonstração
+      expect(store.conflitoAoIniciar(t3), contains('Paulo'));
+      store.assumirVan(t3.veiculoId);
+      expect(store.conflitoAoIniciar(t3), isNull);
+
+      store.iniciarViagem(rota(store, 't1'));
+      expect(store.conflitoAoIniciar(rota(store, 't2')), contains('já está em viagem'));
+      store.dispose();
+    });
+
+    test('convite é login e respeita o escopo', () {
+      final store = VanStore();
+      final avo = store.gerarConvite(['a3'], escopo: Escopo.leitura, nomeConvidado: 'Avó Lúcia');
+      final pai = store.gerarConvite(['a3']);
+      expect(avo.cancelado, isFalse, reason: 'convite de outro familiar não substitui o do responsável');
+
+      store.entrarComConvite(avo);
+      expect(store.perfil, Perfil.responsavel);
+      expect(store.filhosDoResponsavel, ['a3']);
+      expect(store.nomeSessao, 'Avó Lúcia');
+      expect(store.podeAgir, isFalse);
+
+      store.entrarComConvite(pai);
+      expect(store.nomeSessao, 'Rafael Almeida');
+      expect(store.podeAgir, isTrue);
     });
   });
 }

@@ -31,6 +31,22 @@ class _FolhaConviteState extends State<_FolhaConvite> {
   late final Set<String> _selecionados;
   Convite? _convite;
 
+  /// false = responsável cadastrado (ver e agir); true = outro familiar (escolhe o escopo).
+  bool _outroFamiliar = false;
+  Escopo _escopo = Escopo.leitura;
+  final _nomeFamiliar = TextEditingController();
+
+  @override
+  void dispose() {
+    _nomeFamiliar.dispose();
+    super.dispose();
+  }
+
+  void _mudou(VoidCallback f) => setState(() {
+    f();
+    _convite = null; // mudou para quem / o que pode → gera de novo
+  });
+
   @override
   void initState() {
     super.initState();
@@ -95,7 +111,40 @@ class _FolhaConviteState extends State<_FolhaConvite> {
               ],
             ),
           Secao(
-            titulo: 'O que ${primeiroNome(widget.aluno.responsavel.nome)} vai ver',
+            titulo: 'Para quem',
+            rodape: _outroFamiliar ? _escopo.descricao : 'Responsável cadastrado: pode ver e agir.',
+            filhos: [
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  children: [
+                    Segmentos<bool>(
+                      valor: _outroFamiliar,
+                      opcoes: {false: primeiroNome(widget.aluno.responsavel.nome), true: 'Outro familiar'},
+                      aoMudar: (v) => _mudou(() => _outroFamiliar = v),
+                    ),
+                    if (_outroFamiliar) ...[
+                      const SizedBox(height: 10),
+                      CampoTexto(
+                        controle: _nomeFamiliar,
+                        rotulo: 'Nome (ex.: Avó Lúcia)',
+                        icone: CupertinoIcons.person_fill,
+                        aoMudar: () => _mudou(() {}),
+                      ),
+                      Segmentos<Escopo>(
+                        valor: _escopo,
+                        opcoes: {for (final e in Escopo.values) e: e.rotulo},
+                        aoMudar: (v) => _mudou(() => _escopo = v),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+          Secao(
+            titulo:
+                'O que ${_outroFamiliar && _nomeFamiliar.text.trim().isNotEmpty ? primeiroNome(_nomeFamiliar.text) : primeiroNome(widget.aluno.responsavel.nome)} vai ver',
             filhos: [
               Padding(
                 padding: const EdgeInsets.all(14),
@@ -131,11 +180,17 @@ class _FolhaConviteState extends State<_FolhaConvite> {
                     'Gerar convite',
                     key: const ValueKey('gerar'),
                     icone: CupertinoIcons.paperplane_fill,
-                    aoTocar: selecionados.isEmpty
+                    aoTocar: selecionados.isEmpty || (_outroFamiliar && _nomeFamiliar.text.trim().isEmpty)
                         ? null
                         : () {
                             HapticFeedback.mediumImpact();
-                            setState(() => _convite = store.gerarConvite(_selecionados.toList()));
+                            setState(
+                              () => _convite = store.gerarConvite(
+                                _selecionados.toList(),
+                                escopo: _outroFamiliar ? _escopo : Escopo.completo,
+                                nomeConvidado: _outroFamiliar ? _nomeFamiliar.text : null,
+                              ),
+                            );
                           },
                   )
                 : _ConviteGerado(

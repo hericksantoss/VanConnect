@@ -38,6 +38,9 @@ class RotasTela extends StatelessWidget {
                     titulo: '${t.sentido.rotulo} · ${horario(t.saida)}',
                     subtitulo: '${t.escolaIds.map((id) => store.escola(id).nome).join(', ')}\n'
                         '${store.alunosDo(t).length} alunos · ${store.km(t).toStringAsFixed(1)} km · ${store.veiculoDe(t).apelido}',
+                    fim: store.execucoesRemotas.containsKey(t.veiculoId)
+                        ? Selo('Em uso', cor: p.laranja, icone: CupertinoIcons.antenna_radiowaves_left_right)
+                        : (store.ajusteDeHoje(t).vazio ? null : Selo('Hoje alterada', cor: p.azul)),
                     aoTocar: () => abrir(context, RotaTela(trajeto: t)),
                   ),
               ],

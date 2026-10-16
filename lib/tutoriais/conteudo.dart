@@ -35,6 +35,12 @@ const tutoriais = <String, Tutorial>{
       destaques: ['✓ Embarcou', '✗ Não veio', 'Todos embarcaram'],
     ),
     PassoTutorial(
+      icone: CupertinoIcons.bell_fill,
+      titulo: 'Avise que está chegando',
+      texto: 'A caminho de uma casa, toque em "Avisar que estou chegando": a família recebe na hora e já desce com a mochila.',
+      destaques: ['Avisar que estou chegando'],
+    ),
+    PassoTutorial(
       icone: CupertinoIcons.exclamationmark_triangle_fill,
       titulo: 'Botão de emergência',
       texto: 'Durante a viagem, o triângulo vermelho no topo do mapa envia um alerta para todas as famílias da rota.',
@@ -59,6 +65,12 @@ const tutoriais = <String, Tutorial>{
       titulo: 'Edite tudo em um lugar',
       texto: 'Ajuste o horário de saída, escolha a van, marque as escolas atendidas e defina quem vai em cada rota.',
       destaques: ['Saída', 'Van', 'Escolas', 'Editar quem vai'],
+    ),
+    PassoTutorial(
+      icone: CupertinoIcons.calendar_today,
+      titulo: 'Só hoje ou sempre',
+      texto: 'Em "Quem vai hoje" você tira ou inclui alguém só no dia, sem mexer na rota padrão. Gostou? Toque em "Salvar hoje como padrão".',
+      destaques: ['Quem vai hoje', 'Salvar como padrão', 'Desfazer'],
     ),
     PassoTutorial(
       icone: CupertinoIcons.wand_stars,
@@ -149,14 +161,14 @@ const tutoriais = <String, Tutorial>{
     PassoTutorial(
       icone: CupertinoIcons.person_crop_circle_fill_badge_checkmark,
       titulo: 'Status do seu filho',
-      texto: 'O painel embaixo mostra quanto falta para a van chegar, quando seu filho embarcou e quando chegou. Troque de filho no topo.',
-      destaques: ['Chega em ~4 min', 'Está na van', 'Chegou'],
+      texto: 'O painel embaixo mostra quantas paradas faltam até você, quando seu filho embarcou e quando chegou. Se o sinal do motorista cair, o app avisa.',
+      destaques: ['Faltam 2 paradas', 'Está na van', 'Chegou'],
     ),
     PassoTutorial(
       icone: CupertinoIcons.calendar_badge_minus,
       titulo: 'Não vai hoje?',
-      texto: 'Um toque avisa o motorista e a parada sai da rota, sem precisar mandar mensagem.',
-      destaques: ['Não vai hoje'],
+      texto: 'Um toque avisa o motorista e a parada sai da rota. Mudou de ideia? Toque em "Vai sim". Vale até a rota começar.',
+      destaques: ['Não vai hoje', 'Vai sim'],
     ),
     PassoTutorial(
       icone: CupertinoIcons.hand_draw_fill,
@@ -201,8 +213,8 @@ const tutoriais = <String, Tutorial>{
     PassoTutorial(
       icone: CupertinoIcons.arrow_left,
       titulo: 'Mudou de ideia?',
-      texto: 'Deslize uma ausência para a esquerda para cancelar o aviso.',
-      destaques: ['Deslizar para cancelar'],
+      texto: 'Deslize uma ausência para a esquerda para marcar presença. Depois que a rota começa, só combinando com o motorista.',
+      destaques: ['Marcar presença'],
     ),
   ]),
   'responsavel.pagamentos': Tutorial(aba: 'Pagamentos', passos: [

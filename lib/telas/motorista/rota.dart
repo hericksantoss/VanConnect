@@ -37,11 +37,8 @@ class RotaTela extends StatelessWidget {
           ? null
           : SafeArea(
               minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: Botao('Iniciar esta viagem', icone: CupertinoIcons.play_fill, aoTocar: () {
-                store.iniciarViagem(trajeto);
-                Navigator.pop(context);
-                abrirViagem(context);
-              }),
+              child: Botao('Iniciar esta viagem', icone: CupertinoIcons.play_fill,
+                  aoTocar: () => iniciarViagemComCuidado(context, trajeto, fecharTelaAtual: true)),
             ),
       filhos: [
         MapaTrajeto(
@@ -51,6 +48,7 @@ class RotaTela extends StatelessWidget {
           altura: 200,
           raio: 18,
         ),
+        _SecaoHoje(trajeto: trajeto),
         Secao(
           titulo: 'Configuração',
           filhos: [
@@ -137,7 +135,8 @@ class RotaTela extends StatelessWidget {
               ),
             Linha(
               inicio: IconeApp(CupertinoIcons.person_2_fill, cor: p.azul),
-              titulo: 'Editar quem vai',
+              titulo: 'Editar rota padrão',
+              subtitulo: 'Quem vai todos os dias',
               corTitulo: p.azul,
               aoTocar: () => abrirFolha(context, _QuemVai(trajeto: trajeto)),
             ),
@@ -181,9 +180,9 @@ class RotaTela extends StatelessWidget {
   }
 }
 
-/// Lista de alunos com marcação: quem entra e quem sai desta rota.
-class _QuemVai extends StatelessWidget {
-  const _QuemVai({required this.trajeto});
+/// "Hoje": mudanças só para a rota de hoje, sem mexer na rota padrão.
+class _SecaoHoje extends StatelessWidget {
+  const _SecaoHoje({required this.trajeto});
 
   final Trajeto trajeto;
 
@@ -191,6 +190,72 @@ class _QuemVai extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = VanScope.of(context);
     final p = context.cores;
+    final ajuste = store.ajusteDeHoje(trajeto);
+    final hoje = store.alunosDoDia(trajeto).length;
+    final remota = store.execucoesRemotas[trajeto.veiculoId];
+
+    return Secao(
+      titulo: 'Hoje',
+      rodape: ajuste.vazio ? 'Mudanças feitas aqui valem só para hoje. A rota padrão continua igual.' : null,
+      filhos: [
+        if (remota != null)
+          Linha(
+            inicio: IconeApp(CupertinoIcons.antenna_radiowaves_left_right, cor: p.laranja),
+            titulo: 'Van em uso por ${remota.quem}',
+            subtitulo: '${remota.trajetoNome} · desde ${hora(remota.desde)}',
+          ),
+        Linha(
+          inicio: IconeApp(CupertinoIcons.calendar_today, cor: p.azul),
+          titulo: 'Quem vai hoje',
+          subtitulo: [
+            '$hoje aluno(s)',
+            if (ajuste.removidos.isNotEmpty) '${ajuste.removidos.length} fora só hoje',
+            if (ajuste.incluidos.isNotEmpty) '${ajuste.incluidos.length} a mais só hoje',
+          ].join(' · '),
+          aoTocar: () => abrirFolha(context, _QuemVai(trajeto: trajeto, soHoje: true)),
+        ),
+        if (!ajuste.vazio) ...[
+          Linha(
+            inicio: IconeApp(CupertinoIcons.checkmark_seal_fill, cor: p.azul),
+            titulo: 'Salvar hoje como padrão',
+            corTitulo: p.azul,
+            seta: false,
+            aoTocar: () async {
+              if (await confirmar(context,
+                  titulo: 'Salvar como padrão?',
+                  mensagem: 'A rota de todos os dias passa a ser igual à de hoje.',
+                  acao: 'Salvar')) {
+                store.salvarDiaComoPadrao(trajeto);
+                if (context.mounted) avisar(context, 'Rota padrão atualizada');
+              }
+            },
+          ),
+          Linha(
+            inicio: IconeApp(CupertinoIcons.arrow_uturn_left, cor: p.cinza),
+            titulo: 'Desfazer mudanças de hoje',
+            seta: false,
+            aoTocar: () => store.desfazerAjustesDeHoje(trajeto),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+/// Lista de alunos com marcação: quem entra e quem sai desta rota.
+class _QuemVai extends StatelessWidget {
+  const _QuemVai({required this.trajeto, this.soHoje = false});
+
+  final Trajeto trajeto;
+
+  /// true = mexe só na rota de hoje; false = mexe na rota padrão.
+  final bool soHoje;
+
+  @override
+  Widget build(BuildContext context) {
+    final store = VanScope.of(context);
+    final p = context.cores;
+    final hojeIds = store.alunosDoDia(trajeto).map((a) => a.id).toSet();
     final candidatos = [...store.alunosAtivos]
       ..sort((a, b) {
         final pa = a.turno == trajeto.turno ? 0 : 1, pb = b.turno == trajeto.turno ? 0 : 1;
@@ -206,10 +271,18 @@ class _QuemVai extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
           Row(children: [
-            const Expanded(child: Text('Quem vai', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5))),
+            Expanded(
+              child: Text(soHoje ? 'Quem vai hoje' : 'Rota padrão',
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+            ),
             CupertinoButton(padding: EdgeInsets.zero, onPressed: () => Navigator.pop(context), child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w700))),
           ]),
-          Text('${trajeto.alunoIds.length} selecionado(s) · ${trajeto.nome}', style: TextStyle(color: p.textoSuave)),
+          Text(
+            soHoje
+                ? '${hojeIds.length} selecionado(s) · vale só para hoje'
+                : '${trajeto.alunoIds.length} selecionado(s) · todos os dias',
+            style: TextStyle(color: p.textoSuave),
+          ),
           Secao(
             filhos: [
               for (final a in candidatos)
@@ -217,12 +290,16 @@ class _QuemVai extends StatelessWidget {
                   inicio: Avatar(a.nome, tamanho: 34),
                   titulo: a.nome,
                   subtitulo: '${store.escola(a.escolaId).nome} · ${a.turno.rotulo}',
-                  fim: Icon(
-                    trajeto.alunoIds.contains(a.id) ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.circle,
-                    color: trajeto.alunoIds.contains(a.id) ? p.azul : p.cinza,
-                  ),
+                  fim: Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (soHoje && trajeto.alunoIds.contains(a.id) != hojeIds.contains(a.id))
+                      Padding(padding: const EdgeInsets.only(right: 6), child: Selo('só hoje', cor: p.azul)),
+                    Icon(
+                      (soHoje ? hojeIds : trajeto.alunoIds).contains(a.id) ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.circle,
+                      color: (soHoje ? hojeIds : trajeto.alunoIds).contains(a.id) ? p.azul : p.cinza,
+                    ),
+                  ]),
                   seta: false,
-                  aoTocar: () => store.alternarAlunoNoTrajeto(trajeto, a.id),
+                  aoTocar: () => soHoje ? store.alternarAlunoHoje(trajeto, a.id) : store.alternarAlunoNoTrajeto(trajeto, a.id),
                 ),
             ],
           ),

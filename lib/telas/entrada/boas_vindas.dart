@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../app/tema.dart';
 import '../../componentes/ui.dart';
 import '../../estado/van_store.dart';
+import 'entrar_responsavel.dart';
 
 class BoasVindas extends StatelessWidget {
   const BoasVindas({super.key});
@@ -59,12 +60,11 @@ class BoasVindas extends StatelessWidget {
                       cor: p.azul,
                       titulo: 'Sou responsável',
                       texto: 'Acompanhe a van em tempo real',
-                      aoTocar: () => store.escolherPerfil(Perfil.responsavel),
+                      aoTocar: () => abrir(context, const EntrarResponsavelTela()),
                     ),
                     const SizedBox(height: 20),
                     Center(
-                      child: Text('Protótipo · dados fictícios',
-                          style: TextStyle(color: p.textoSuave, fontSize: 12.5)),
+                      child: Text('Protótipo · dados fictícios', style: TextStyle(color: p.textoSuave, fontSize: 12.5)),
                     ),
                     const SizedBox(height: 16),
                   ],

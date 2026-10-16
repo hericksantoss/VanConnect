@@ -13,24 +13,33 @@ class AjustesResponsavelTela extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = VanScope.of(context);
     final p = context.cores;
-    final filhos = store.filhosDoResponsavel.map(store.aluno).toList();
-    final eu = filhos.first.responsavel;
 
     return PaginaIOS(
       titulo: 'Ajustes',
       filhos: [
         Cartao(
           padding: const EdgeInsets.all(14),
-          child: Row(children: [
-            Avatar(eu.nome, tamanho: 58),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(eu.nome, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
-                Text(eu.telefone, style: TextStyle(color: p.textoSuave)),
-              ]),
-            ),
-          ]),
+          child: Row(
+            children: [
+              Avatar(store.nomeSessao, tamanho: 58),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(store.nomeSessao, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
+                    if (store.telefoneSessao.isNotEmpty) Text(store.telefoneSessao, style: TextStyle(color: p.textoSuave)),
+                    const SizedBox(height: 4),
+                    Selo(
+                      store.escopoSessao.rotulo,
+                      cor: store.podeAgir ? p.azul : p.cinza,
+                      icone: store.podeAgir ? CupertinoIcons.hand_raised_fill : CupertinoIcons.eye_fill,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
         const SecaoAparencia(),
         Secao(
@@ -57,7 +66,9 @@ class AjustesResponsavelTela extends StatelessWidget {
               seta: false,
               aoTocar: () async {
                 await Tutoriais.reativarTodos();
-                if (context.mounted) avisar(context, 'Tutoriais reativados: toque nas abas para ver', icone: CupertinoIcons.lightbulb_fill, cor: p.azul);
+                if (context.mounted) {
+                  avisar(context, 'Tutoriais reativados: toque nas abas para ver', icone: CupertinoIcons.lightbulb_fill, cor: p.azul);
+                }
               },
             ),
             Linha(
