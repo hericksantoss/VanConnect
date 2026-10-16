@@ -119,10 +119,16 @@ const tutoriais = <String, Tutorial>{
       destaques: ['Placa', 'Lugares'],
     ),
     PassoTutorial(
+      icone: CupertinoIcons.paperplane_fill,
+      titulo: 'Convide as famílias',
+      texto: 'Na ficha do aluno, toque em Convidar: a família recebe um link já com o filho e a rota, e só precisa aceitar. Irmãos vão no mesmo convite.',
+      destaques: ['Convidar', 'Uso único', 'Vale 7 dias'],
+    ),
+    PassoTutorial(
       icone: CupertinoIcons.qrcode,
-      titulo: 'Código da van',
-      texto: 'Toque em Convidar para copiar o código. A família digita esse código no app para pedir para entrar na van.',
-      destaques: ['Convidar'],
+      titulo: 'Código geral',
+      texto: 'O código VAN-… serve para quem chega sozinho. Nesse caso a família preenche os dados e você aprova em Alunos › Pedidos.',
+      destaques: ['VAN-4821', 'Pedidos'],
     ),
     PassoTutorial(
       icone: CupertinoIcons.moon_fill,
@@ -173,10 +179,10 @@ const tutoriais = <String, Tutorial>{
       destaques: ['Alergia', 'Medicação'],
     ),
     PassoTutorial(
-      icone: CupertinoIcons.qrcode,
+      icone: CupertinoIcons.paperplane_fill,
       titulo: 'Adicionar um filho',
-      texto: 'Toque no +, digite o código da van que o motorista enviou, confirme a van e preencha os dados. O motorista aprova o pedido.',
-      destaques: ['Código da van', 'Esta é a sua van?', 'Enviar pedido'],
+      texto: 'Toque no link que o motorista mandou pelo WhatsApp, ou toque no + e digite o código do convite. Vem tudo pronto: é só aceitar.',
+      destaques: ['Código do convite', 'Aceitar convite'],
     ),
   ]),
   'responsavel.avisos': Tutorial(aba: 'Avisos', passos: [

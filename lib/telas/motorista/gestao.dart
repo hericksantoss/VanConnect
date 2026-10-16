@@ -37,7 +37,7 @@ class GestaoTela extends StatelessWidget {
                 Text('Motorista · ${store.veiculo.apelido}', style: TextStyle(color: p.textoSuave)),
               ]),
             ),
-            Botao('Convidar', compacto: true, estilo: EstiloBotao.secundario, icone: CupertinoIcons.share,
+            Botao('Código geral', compacto: true, estilo: EstiloBotao.secundario, icone: CupertinoIcons.share,
                 aoTocar: () => copiarCodigo(context, store.codigoVan)),
           ]),
         ),

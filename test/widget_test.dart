@@ -122,4 +122,50 @@ void main() {
     await Tutoriais.reativarTodos();
     expect(Tutoriais.ocultos, 0);
   });
+
+  group('convite da família', () {
+    test('irmãos vão juntos e o código tem 6 caracteres sem ambiguidade', () {
+      final store = VanStore();
+      expect(store.familiaDe(store.aluno('a1')).map((a) => a.id), containsAll(['a1', 'a2']));
+      final c = store.gerarConvite(['a3']);
+      expect(c.codigo, matches(RegExp(r'^[A-HJ-NP-Z2-9]{6}$')));
+      expect(c.codigoFormatado, contains('-'));
+    });
+
+    test('aceitar conecta a família sem aprovação e o convite não pode ser reusado', () {
+      final store = VanStore();
+      final c = store.gerarConvite(['a3']);
+      expect(store.aluno('a3').familiaConectada, isFalse);
+
+      final achado = store.buscarConvite(' ${c.codigo.substring(0, 3).toLowerCase()} ${c.codigo.substring(3)} ');
+      expect(achado, same(c));
+
+      store.aceitarConvite(achado!);
+      expect(store.aluno('a3').familiaConectada, isTrue);
+      expect(store.filhosDoResponsavel, contains('a3'));
+      expect(store.solicitacoes.where((s) => s.nomeAluno.contains('Theo')), isEmpty);
+      expect(store.buscarConvite(c.codigo), isNull);
+    });
+
+    test('cancelado ou vencido não vale; gerar de novo substitui o anterior', () {
+      final store = VanStore();
+      final c1 = store.gerarConvite(['a4']);
+      expect(store.gerarConvite(['a4']), same(c1));
+
+      final c2 = store.gerarConvite(['a4', 'a5']);
+      expect(c1.cancelado, isTrue);
+      expect(store.buscarConvite(c1.codigo), isNull);
+
+      store.cancelarConvite(c2);
+      expect(store.buscarConvite(c2.codigo), isNull);
+
+      final c3 = store.gerarConvite(['a7']);
+      expect(c3.valido(DateTime.now().add(VanStore.validadeConvite + const Duration(minutes: 1))), isFalse);
+    });
+
+    test('código geral continua indo para aprovação', () {
+      expect(VanStore.pareceCodigoGeral('van-4821'), isTrue);
+      expect(VanStore.pareceCodigoGeral('K7P-2QX'), isFalse);
+    });
+  });
 }

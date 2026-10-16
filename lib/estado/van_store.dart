@@ -29,6 +29,9 @@ class VanStore extends ChangeNotifier {
     trajetos.addAll(Semente.trajetos());
     cobrancas.addAll(Semente.cobrancas(alunos));
     solicitacoes.addAll(Semente.solicitacoes());
+    for (final id in filhosDoResponsavel) {
+      aluno(id).familiaConectada = true;
+    }
     final amanha = soData(DateTime.now()).add(const Duration(days: 1));
     ausencias.add(Ausencia(
       id: 'aus0',
@@ -50,6 +53,7 @@ class VanStore extends ChangeNotifier {
   final String nomeMotorista = 'Rogério Nunes';
   final String codigoVan = Semente.codigoVan;
   final solicitacoes = <Solicitacao>[];
+  final convites = <Convite>[];
   final escolas = <Escola>[];
   final alunos = <Aluno>[];
   final trajetos = <Trajeto>[];
@@ -129,9 +133,100 @@ class VanStore extends ChangeNotifier {
       diaVencimento: 10,
       nascimento: DateTime(DateTime.now().year - 8),
     );
+    alunos.last.familiaConectada = true;
     if (s.doResponsavelDemo) filhosDoResponsavel.add(alunos.last.id);
     notifyListeners();
     return rotas;
+  }
+
+  // ------------------------------------------------------- convites (família)
+
+  static const _alfabetoConvite = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  static const validadeConvite = Duration(days: 7);
+
+  /// Irmãos: alunos ativos com o mesmo telefone de responsável.
+  List<Aluno> familiaDe(Aluno a) => alunosAtivos
+      .where((x) => x.responsavel.telefone == a.responsavel.telefone)
+      .toList()
+    ..sort((x, y) => x.nome.compareTo(y.nome));
+
+  /// Convite ainda válido que inclui este aluno (se houver).
+  Convite? conviteAtivoDe(String alunoId) {
+    final agora = DateTime.now();
+    for (final c in convites.reversed) {
+      if (c.valido(agora) && c.alunoIds.contains(alunoId)) return c;
+    }
+    return null;
+  }
+
+  /// Gera (ou reaproveita) o convite de uso único para estes alunos.
+  Convite gerarConvite(List<String> alunoIds) {
+    final ids = [...{...alunoIds}]..sort();
+    final existente = conviteAtivoDe(ids.first);
+    if (existente != null && ({...existente.alunoIds}.containsAll(ids)) && existente.alunoIds.length == ids.length) {
+      return existente;
+    }
+    // Um convite novo substitui os anteriores destes alunos.
+    for (final id in ids) {
+      conviteAtivoDe(id)?.cancelado = true;
+    }
+    final r = math.Random.secure();
+    String codigo;
+    do {
+      codigo = List.generate(6, (_) => _alfabetoConvite[r.nextInt(_alfabetoConvite.length)]).join();
+    } while (convites.any((c) => c.codigo == codigo));
+    final agora = DateTime.now();
+    final c = Convite(
+      codigo: codigo,
+      alunoIds: ids,
+      responsavel: aluno(ids.first).responsavel,
+      criadoEm: agora,
+      expiraEm: agora.add(validadeConvite),
+    );
+    convites.add(c);
+    notifyListeners();
+    return c;
+  }
+
+  /// Tira espaços, traços e minúsculas: "k7p 2qx" → "K7P2QX".
+  static String limparCodigo(String bruto) => bruto.toUpperCase().replaceAll(RegExp(r'[^A-Z0-9]'), '');
+
+  /// Código geral do motorista começa com VAN; o resto é tratado como convite.
+  static bool pareceCodigoGeral(String bruto) => limparCodigo(bruto).startsWith('VAN');
+
+  Convite? buscarConvite(String bruto) {
+    final codigo = limparCodigo(bruto);
+    final agora = DateTime.now();
+    for (final c in convites) {
+      if (c.codigo == codigo && c.valido(agora)) return c;
+    }
+    return null;
+  }
+
+  /// O responsável aceita: os filhos passam a aparecer para ele. Sem aprovação,
+  /// porque foi o próprio motorista quem convidou.
+  List<Aluno> aceitarConvite(Convite c) {
+    c.aceitoEm = DateTime.now();
+    for (final id in c.alunoIds) {
+      aluno(id).familiaConectada = true;
+      if (!filhosDoResponsavel.contains(id)) filhosDoResponsavel.add(id);
+    }
+    notifyListeners();
+    return c.alunoIds.map(aluno).toList();
+  }
+
+  void cancelarConvite(Convite c) {
+    c.cancelado = true;
+    notifyListeners();
+  }
+
+  String mensagemConvite(Convite c) {
+    final nomes = c.alunoIds.map((id) => aluno(id).primeiro).toList();
+    final quem = nomes.length == 1 ? nomes.first : '${nomes.sublist(0, nomes.length - 1).join(', ')} e ${nomes.last}';
+    return 'Olá, ${primeiroNome(c.responsavel.nome)}! Aqui é ${primeiroNome(nomeMotorista)}, da van escolar 🚐\n'
+        'Para acompanhar $quem ao vivo e avisar ausências pelo Van Connect, toque no link:\n'
+        '${c.link}\n\n'
+        'Ou abra o app e digite o código ${c.codigoFormatado} (válido até ${dataCurta(c.expiraEm)}).';
   }
 
   void recusar(Solicitacao s) {

@@ -22,7 +22,15 @@ Feito em **Flutter** — roda em **Android** e **iPhone (iOS)** com o mesmo cód
 | **Pagamentos** | Total em aberto, cópia da chave Pix e botão **Já paguei** (o motorista confirma). |
 | **Ajustes** | Aparência (claro/escuro/automático) e notificações. |
 
-**Conexão com a van:** código (`VAN-4821`) → "Esta é a sua van?" → dados do filho → pedido enviado → o motorista aprova.
+**Conexão com a van — dois caminhos:**
+
+| Caminho | Quem inicia | O responsável… | Aprovação |
+|---|---|---|---|
+| **Convite da família** (recomendado) | Motorista, na ficha do aluno (*Convidar*) | toca no link do WhatsApp ou digita o código (ex.: `K7P-2QX`) e **aceita** — filho, escola e rota já vêm preenchidos | Não |
+| **Código geral da van** (`VAN-4821`) | Responsável que chega sozinho | confirma a van e preenche os dados do filho | Sim, em *Gestão › Alunos › Pedidos* |
+
+O convite é de uso único, vale 7 dias, pode ser cancelado e inclui os irmãos (mesmo responsável).
+Ao cadastrar um aluno novo, o app já abre o convite para enviar à família.
 
 ### Motorista
 | Aba | O que faz |
@@ -30,7 +38,7 @@ Feito em **Flutter** — roda em **Android** e **iPhone (iOS)** com o mesmo cód
 | **Início** | Próxima viagem com um botão **Iniciar viagem**, pendências do dia e agenda. |
 | **Rotas** | Criar/editar/excluir rotas: horário de saída, van, escolas atendidas, **quem vai** em cada rota, ordem das paradas (arrastar) e **otimizar ordem** (menor caminho). |
 | **Finanças** | Gráfico dos últimos 6 meses (previsto × recebido), recebido/a receber/atrasado, ticket médio, inadimplência, **cobrar atrasados em lote** (mensagem pronta para WhatsApp), gerar mensalidades e registrar pagamentos. |
-| **Gestão** | Alunos (com **pedidos** para aprovar), **escolas** (nome, endereço, horários), **vans** (apelido, modelo, placa, lugares), código da van, aparência e preferências da viagem. |
+| **Gestão** | Alunos (com **convite para a família** e **pedidos** para aprovar), **escolas** (nome, endereço, horários), **vans** (apelido, modelo, placa, lugares), código da van, aparência e preferências da viagem. |
 
 **Viagem ao vivo:** mapa com a van se movendo, chamada por parada (embarcou / não veio / entregue),
 irmãos agrupados na mesma parada, ausências avisadas já fora da rota, avanço automático e
@@ -107,6 +115,7 @@ Estado com `ChangeNotifier` + `InheritedNotifier` (sem pacotes extras). A posiç
 
 - [ ] **Backend e login** (Firebase Auth + Firestore, como no projeto original): trocar os métodos de `VanStore` por chamadas ao banco.
 - [ ] **GPS real** do celular do motorista com serviço em segundo plano (`geolocator` + permissões Android/iOS).
+- [ ] **Convites no backend:** documento `convites/{codigo}` (motorista, alunos, validade, uso) validado por uma Cloud Function; link com **App Links/Universal Links** (`app_links`) abrindo direto no convite.
 - [ ] **Notificações push** para as famílias (Firebase Cloud Messaging).
 - [ ] **Provedor de mapa para produção:** as imagens públicas do OpenStreetMap são só para testes
       ([política de uso](https://operations.osmfoundation.org/policies/tiles/)). Em produção, use MapTiler,

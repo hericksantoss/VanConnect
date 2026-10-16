@@ -7,6 +7,7 @@ import '../../app/tema.dart';
 import '../../componentes/ui.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/van_store.dart';
+import 'convite.dart';
 import 'financeiro.dart';
 
 void abrirPassageiro(BuildContext context, Aluno a) => abrir(context, PassageiroTela(alunoId: a.id));
@@ -121,19 +122,20 @@ class _PassageirosTelaState extends State<PassageirosTela> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Código da sua van', style: TextStyle(color: p.textoSuave, fontSize: 13)),
+                    Text('Código geral da van', style: TextStyle(color: p.textoSuave, fontSize: 13)),
                     Text(store.codigoVan, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 1)),
                   ],
                 ),
               ),
-              Botao('Convidar', compacto: true, estilo: EstiloBotao.secundario, icone: CupertinoIcons.share,
+              Botao('Compartilhar', compacto: true, estilo: EstiloBotao.secundario, icone: CupertinoIcons.share,
                   aoTocar: () => copiarCodigo(context, store.codigoVan)),
             ],
           ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: Text('As famílias digitam o código no app e o pedido aparece aqui para você aprovar.',
+          child: Text('Para quem chega sozinho: a família digita este código e o pedido aparece aqui para você aprovar. '
+              'Para quem você já atende, use Convidar na ficha do aluno: vai com filho e rota, sem aprovação.',
               style: TextStyle(color: p.textoSuave, fontSize: 12.5)),
         ),
         if (store.solicitacoes.isEmpty)
@@ -162,7 +164,9 @@ class _LinhaAluno extends StatelessWidget {
       child: Linha(
         inicio: Avatar(aluno.nome, tamanho: 36),
         titulo: aluno.nome,
-        subtitulo: store.escola(aluno.escolaId).nome,
+        subtitulo: aluno.familiaConectada
+            ? store.escola(aluno.escolaId).nome
+            : '${store.escola(aluno.escolaId).nome} · ${store.conviteAtivoDe(aluno.id) != null ? 'convite enviado' : 'família sem app'}',
         fim: Row(mainAxisSize: MainAxisSize.min, children: [
           if (aluno.cuidados.isNotEmpty) Icon(CupertinoIcons.heart_circle_fill, color: p.vermelho, size: 18),
           if (ausente) ...[const SizedBox(width: 4), Icon(CupertinoIcons.calendar_badge_minus, color: p.laranja, size: 18)],
@@ -270,8 +274,7 @@ class PassageiroTela extends StatelessWidget {
               avisar(context, 'Telefone copiado', icone: CupertinoIcons.phone_fill);
             })),
             const SizedBox(width: 10),
-            Expanded(child: _Acao(icone: CupertinoIcons.chat_bubble_fill, rotulo: 'Mensagem',
-                aoTocar: () => avisar(context, 'Abriria o WhatsApp (protótipo)', icone: CupertinoIcons.chat_bubble_fill))),
+            Expanded(child: _Acao(icone: CupertinoIcons.paperplane_fill, rotulo: 'Convidar', aoTocar: () => abrirConvite(context, a))),
             const SizedBox(width: 10),
             Expanded(child: _Acao(icone: CupertinoIcons.money_dollar_circle_fill, rotulo: 'Cobrar', aoTocar: () {
               final aberta = store.cobrancasDo(a.id).where((c) => c.status(hoje) != StatusCobranca.paga).firstOrNull;
@@ -300,6 +303,16 @@ class PassageiroTela extends StatelessWidget {
           filhos: [
             Linha(inicio: IconeApp(CupertinoIcons.person_fill, cor: p.azul), titulo: a.responsavel.nome, subtitulo: a.responsavel.parentesco),
             Linha(inicio: IconeApp(CupertinoIcons.phone_fill, cor: p.verde), titulo: a.responsavel.telefone),
+            Linha(
+              inicio: IconeApp(
+                a.familiaConectada ? CupertinoIcons.checkmark_seal_fill : CupertinoIcons.paperplane_fill,
+                cor: a.familiaConectada ? p.verde : p.azul,
+              ),
+              titulo: situacaoFamilia(store, a),
+              subtitulo: a.familiaConectada ? 'Acompanha a van e avisa ausências' : 'Toque para convidar pelo WhatsApp',
+              corTitulo: a.familiaConectada ? null : p.azul,
+              aoTocar: () => abrirConvite(context, a),
+            ),
           ],
         ),
         Secao(
@@ -462,8 +475,12 @@ class _NovoPassageiroState extends State<_NovoPassageiro> {
                           nascimento: DateTime(DateTime.now().year - 8),
                           cuidados: _cuidados.text.trim(),
                         );
-                        Navigator.pop(context);
-                        avisar(context, '${primeiroNome(_nome.text)} adicionado${rotas.isEmpty ? '' : ' às rotas da ${_turno.rotulo.toLowerCase()}'}');
+                        // Contexto do navegador continua válido depois de fechar esta folha.
+                        final nav = Navigator.of(context);
+                        nav.pop();
+                        avisar(nav.context, '${primeiroNome(_nome.text)} adicionado${rotas.isEmpty ? '' : ' às rotas da ${_turno.rotulo.toLowerCase()}'}');
+                        // Fluxo direto: cadastrou → já convida a família.
+                        abrirConvite(nav.context, store.alunos.last);
                       }
                     : null,
                 child: const Text('Salvar', style: TextStyle(fontWeight: FontWeight.w700)),
@@ -476,7 +493,7 @@ class _NovoPassageiroState extends State<_NovoPassageiro> {
                 Icon(CupertinoIcons.lightbulb_fill, color: p.azul, size: 20),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text('Dica: envie o código ${store.codigoVan} e a família faz o cadastro sozinha.',
+                  child: Text('Depois de salvar, você já envia o convite para a família pelo WhatsApp.',
                       style: TextStyle(color: p.azul, fontWeight: FontWeight.w500)),
                 ),
               ]),

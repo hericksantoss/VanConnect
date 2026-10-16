@@ -42,8 +42,9 @@ class FilhosTela extends StatelessWidget {
         Secao(
           filhos: [
             Linha(
-              inicio: IconeApp(CupertinoIcons.qrcode, cor: p.azul),
-              titulo: 'Adicionar filho com código da van',
+              inicio: IconeApp(CupertinoIcons.paperplane_fill, cor: p.azul),
+              titulo: 'Adicionar filho com convite',
+              subtitulo: 'Use o link ou o código que o motorista enviou',
               corTitulo: p.azul,
               aoTocar: () => abrirFolha(context, const ConectarVan()),
             ),

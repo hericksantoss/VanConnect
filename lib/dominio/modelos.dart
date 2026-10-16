@@ -84,6 +84,9 @@ class Aluno {
   String cuidados;
   bool ativo;
 
+  /// A família já acompanha este aluno pelo app (aceitou convite ou foi aprovada).
+  bool familiaConectada = false;
+
   String get primeiro => primeiroNome(nome);
 
   bool aniversarioNaSemana(DateTime hoje) {
@@ -317,4 +320,32 @@ class Solicitacao {
 
   /// Feita pelo perfil "responsável" da demonstração (vira filho dele ao aprovar).
   final bool doResponsavelDemo;
+}
+
+/// Convite que o motorista envia para uma família: já aponta para os filhos
+/// e, por consequência, para as rotas deles. Uso único, com validade.
+class Convite {
+  Convite({
+    required this.codigo,
+    required this.alunoIds,
+    required this.responsavel,
+    required this.criadoEm,
+    required this.expiraEm,
+  });
+
+  /// Seis caracteres sem ambiguidades (sem 0/O, 1/I), ex.: "K7P2QX".
+  final String codigo;
+  final List<String> alunoIds;
+  final Responsavel responsavel;
+  final DateTime criadoEm;
+  final DateTime expiraEm;
+  DateTime? aceitoEm;
+  bool cancelado = false;
+
+  String get codigoFormatado => '${codigo.substring(0, 3)}-${codigo.substring(3)}';
+
+  /// Link que abre o app direto no convite (deep link).
+  String get link => 'https://vanconnect.app/c/$codigo';
+
+  bool valido(DateTime agora) => !cancelado && aceitoEm == null && agora.isBefore(expiraEm);
 }
