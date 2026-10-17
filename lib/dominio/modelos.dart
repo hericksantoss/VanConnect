@@ -22,14 +22,7 @@ enum Sentido {
 }
 
 class Escola {
-  Escola({
-    required this.id,
-    required this.nome,
-    required this.endereco,
-    required this.entrada,
-    required this.saida,
-    required this.posicao,
-  });
+  Escola({required this.id, required this.nome, required this.endereco, required this.entrada, required this.saida, required this.posicao});
 
   final String id;
   String nome;
@@ -41,6 +34,9 @@ class Escola {
 
   /// Posição normalizada (0..1) na área de atendimento.
   Offset posicao;
+
+  /// Endereço completo confirmado pelo CEP e no mapa (null nos dados antigos).
+  Endereco? enderecoCompleto;
 }
 
 class Responsavel {
@@ -86,6 +82,9 @@ class Aluno {
 
   /// A família já acompanha este aluno pelo app (aceitou convite ou foi aprovada).
   bool familiaConectada = false;
+
+  /// Endereço completo confirmado pelo CEP e no mapa (null nos dados antigos).
+  Endereco? enderecoCompleto;
 
   String get primeiro => primeiroNome(nome);
 
@@ -192,8 +191,7 @@ class EventoViagem {
 
 /// Execução de um trajeto em um dia.
 class Viagem {
-  Viagem({required this.trajeto, required this.paradas, required this.situacoes})
-      : inicio = DateTime.now();
+  Viagem({required this.trajeto, required this.paradas, required this.situacoes}) : inicio = DateTime.now();
 
   final Trajeto trajeto;
   final List<Parada> paradas;
@@ -217,16 +215,12 @@ class Viagem {
   int get proximaParada => emMovimento ? posicao.floor() + 1 : posicao.round();
 
   bool paradaResolvida(Parada p) => p.alunoIds.every((id) {
-        final s = situacoes[id]!;
-        if (p.tipo == TipoParada.casa) {
-          return trajeto.sentido == Sentido.ida
-              ? s != SituacaoAluno.aguardando
-              : s != SituacaoAluno.aBordo;
-        }
-        return trajeto.sentido == Sentido.ida
-            ? s != SituacaoAluno.aBordo
-            : s != SituacaoAluno.aguardando;
-      });
+    final s = situacoes[id]!;
+    if (p.tipo == TipoParada.casa) {
+      return trajeto.sentido == Sentido.ida ? s != SituacaoAluno.aguardando : s != SituacaoAluno.aBordo;
+    }
+    return trajeto.sentido == Sentido.ida ? s != SituacaoAluno.aBordo : s != SituacaoAluno.aguardando;
+  });
 
   int get aBordo => situacoes.values.where((s) => s == SituacaoAluno.aBordo).length;
 }
@@ -298,28 +292,38 @@ class Ausencia {
   String get rotuloSentido => sentido == null ? 'Ida e volta' : sentido!.rotulo;
 }
 
-/// Pedido de vínculo feito pelo responsável com o código da van.
+/// Pedido de vínculo feito pelo responsável com o código geral da van.
 class Solicitacao {
   Solicitacao({
     required this.id,
     required this.nomeAluno,
-    required this.escolaId,
+    required this.escolaInformada,
     required this.turno,
     required this.responsavel,
     required this.endereco,
-    this.doResponsavelDemo = false,
+    this.escolaId,
+    this.enderecoCompleto,
+    this.contaId,
   }) : criadaEm = DateTime.now();
 
   final String id;
-  final String nomeAluno;
-  final String escolaId;
-  final Turno turno;
-  final Responsavel responsavel;
-  final String endereco;
+  String nomeAluno;
+
+  /// Nome da escola como o responsável digitou (ele não vê as escolas do motorista).
+  final String escolaInformada;
+
+  /// Escola cadastrada que o motorista confirmou. Obrigatória para aprovar.
+  String? escolaId;
+  Turno turno;
+  Responsavel responsavel;
+  String endereco;
+  Endereco? enderecoCompleto;
   final DateTime criadaEm;
 
-  /// Feita pelo perfil "responsável" da demonstração (vira filho dele ao aprovar).
-  final bool doResponsavelDemo;
+  /// Conta do responsável que pediu (o filho aparece para ela ao aprovar).
+  final String? contaId;
+
+  bool get prontoParaAprovar => escolaId != null;
 }
 
 /// Convite que o motorista envia para uma família: já aponta para os filhos
@@ -383,4 +387,98 @@ class AjusteDoDia {
   final removidos = <String>{};
 
   bool get vazio => incluidos.isEmpty && removidos.isEmpty;
+}
+
+/// Endereço completo, confirmado pelo CEP e por um ponto no mapa.
+class Endereco {
+  Endereco({
+    required this.cep,
+    required this.logradouro,
+    required this.numero,
+    required this.bairro,
+    required this.cidade,
+    required this.uf,
+    this.complemento = '',
+    this.latitude,
+    this.longitude,
+  });
+
+  final String cep;
+  final String logradouro;
+  final String numero;
+  final String complemento;
+  final String bairro;
+  final String cidade;
+  final String uf;
+  final double? latitude;
+  final double? longitude;
+
+  bool get temLocal => latitude != null && longitude != null;
+
+  String get cepFormatado => cep.length == 8 ? '${cep.substring(0, 5)}-${cep.substring(5)}' : cep;
+
+  /// "Rua Aurora, 45 – Bela Vista"
+  String get resumo => ['$logradouro, $numero${complemento.isEmpty ? '' : ' ($complemento)'}', if (bairro.isNotEmpty) bairro].join(' – ');
+
+  /// "Bela Vista · São Paulo/SP · 01310-100"
+  String get regiao => [if (bairro.isNotEmpty) bairro, '$cidade/$uf', cepFormatado].join(' · ');
+
+  Endereco comLocal(double lat, double lng) => Endereco(
+    cep: cep,
+    logradouro: logradouro,
+    numero: numero,
+    complemento: complemento,
+    bairro: bairro,
+    cidade: cidade,
+    uf: uf,
+    latitude: lat,
+    longitude: lng,
+  );
+}
+
+enum TipoAviso { pedido, ausencia, pagamento, cobranca, lembrete, pix, viagem, convite, sistema }
+
+/// Aviso dentro do app (central de avisos). Em produção vira também notificação push.
+class Aviso {
+  Aviso({
+    required this.id,
+    required this.paraMotorista,
+    required this.tipo,
+    required this.titulo,
+    required this.texto,
+    this.alunoIds = const [],
+    this.chavePix,
+  }) : criadoEm = DateTime.now();
+
+  final String id;
+  final bool paraMotorista;
+
+  /// Para quais alunos (famílias). Vazio = todas as famílias.
+  final List<String> alunoIds;
+  final TipoAviso tipo;
+  final String titulo;
+  final String texto;
+
+  /// Chave Pix para copiar direto do aviso (cobranças e lembretes).
+  final String? chavePix;
+  final DateTime criadoEm;
+  bool lido = false;
+}
+
+enum TipoChavePix {
+  cpf('CPF'),
+  telefone('Celular'),
+  email('E-mail'),
+  aleatoria('Aleatória');
+
+  const TipoChavePix(this.rotulo);
+  final String rotulo;
+}
+
+class ChavePix {
+  const ChavePix({required this.tipo, required this.valor, required this.titular});
+
+  final TipoChavePix tipo;
+  final String valor;
+  final String titular;
 }

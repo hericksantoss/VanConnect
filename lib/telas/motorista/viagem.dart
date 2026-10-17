@@ -57,11 +57,13 @@ class ViagemTela extends StatelessWidget {
                   const Spacer(),
                   if (!v.encerrada && store.compartilharAoIniciar)
                     _Vidro(
-                      child: Row(children: [
-                        PontoAoVivo(cor: p.verde),
-                        const SizedBox(width: 8),
-                        Text('Ao vivo · $familias famílias', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
-                      ]),
+                      child: Row(
+                        children: [
+                          PontoAoVivo(cor: p.verde),
+                          const SizedBox(width: 8),
+                          Text('Ao vivo · $familias famílias', style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5)),
+                        ],
+                      ),
                     ),
                   const Spacer(),
                   _BotaoVidro(
@@ -95,7 +97,12 @@ class ViagemTela extends StatelessWidget {
   Future<void> _emergencia(BuildContext context, VanStore store) async {
     final p = context.cores;
     if (store.emergenciaEm != null) {
-      if (await confirmar(context, titulo: 'Encerrar emergência?', mensagem: 'As famílias serão avisadas de que está tudo bem.', acao: 'Está tudo bem')) {
+      if (await confirmar(
+        context,
+        titulo: 'Encerrar emergência?',
+        mensagem: 'As famílias serão avisadas de que está tudo bem.',
+        acao: 'Está tudo bem',
+      )) {
         store.encerrarEmergencia();
       }
       return;
@@ -109,7 +116,9 @@ class ViagemTela extends StatelessWidget {
       destrutiva: true,
     )) {
       store.dispararEmergencia();
-      if (context.mounted) avisar(context, 'Alerta enviado às famílias', icone: CupertinoIcons.exclamationmark_triangle_fill, cor: p.vermelho);
+      if (context.mounted) {
+        avisar(context, 'Alerta enviado às famílias', icone: CupertinoIcons.exclamationmark_triangle_fill, cor: p.vermelho);
+      }
     }
   }
 }
@@ -129,7 +138,10 @@ class _Vidro extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
           color: p.cartao.withValues(alpha: 0.72),
-          child: DefaultTextStyle.merge(style: TextStyle(color: p.texto), child: child),
+          child: DefaultTextStyle.merge(
+            style: TextStyle(color: p.texto),
+            child: child,
+          ),
         ),
       ),
     );
@@ -193,22 +205,56 @@ class _Painel extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
-        if (store.sinalFraco)
+        if (store.gpsDesligado)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Cartao(
+              cor: p.vermelho,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Row(
+                    children: [
+                      Icon(Icons.location_off_rounded, color: Colors.white),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Localização desligada: as famílias não estão recebendo a posição da van.',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Botao(
+                    'Ligar localização',
+                    estilo: EstiloBotao.claro,
+                    compacto: true,
+                    icone: Icons.my_location_rounded,
+                    aoTocar: store.localizacao.abrirAjustesLocalizacao,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        if (store.sinalFraco && !store.gpsDesligado)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Cartao(
               cor: p.suave(p.laranja),
-              child: Row(children: [
-                Icon(CupertinoIcons.wifi_slash, color: p.laranja),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Simulando celular sem sinal: as famílias continuam vendo a última posição enviada. '
-                    'Toque na antena para voltar.',
-                    style: TextStyle(color: p.texto, fontWeight: FontWeight.w500),
+              child: Row(
+                children: [
+                  Icon(CupertinoIcons.wifi_slash, color: p.laranja),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Simulando celular sem sinal: as famílias continuam vendo a última posição enviada. '
+                      'Toque na antena para voltar.',
+                      style: TextStyle(color: p.texto, fontWeight: FontWeight.w500),
+                    ),
                   ),
-                ),
-              ]),
+                ],
+              ),
             ),
           ),
         if (store.emergenciaEm != null)
@@ -216,14 +262,18 @@ class _Painel extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 12),
             child: Cartao(
               cor: p.vermelho,
-              child: const Row(children: [
-                Icon(CupertinoIcons.exclamationmark_triangle_fill, color: Colors.white),
-                SizedBox(width: 10),
-                Expanded(
-                  child: Text('Emergência ativa — famílias avisadas. Toque no triângulo para encerrar.',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                ),
-              ]),
+              child: const Row(
+                children: [
+                  Icon(CupertinoIcons.exclamationmark_triangle_fill, color: Colors.white),
+                  SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Emergência ativa — famílias avisadas. Toque no triângulo para encerrar.',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         Row(
@@ -249,15 +299,20 @@ class _Painel extends StatelessWidget {
             CupertinoButton(
               padding: EdgeInsets.zero,
               onPressed: () async {
-                if (await confirmar(context,
-                    titulo: 'Encerrar viagem?',
-                    mensagem: 'O compartilhamento de localização será desligado.',
-                    acao: 'Encerrar',
-                    destrutiva: true)) {
+                if (await confirmar(
+                  context,
+                  titulo: 'Encerrar viagem?',
+                  mensagem: 'O compartilhamento de localização será desligado.',
+                  acao: 'Encerrar',
+                  destrutiva: true,
+                )) {
                   store.encerrarViagem();
                 }
               },
-              child: Text('Encerrar', style: TextStyle(color: p.vermelho, fontWeight: FontWeight.w600)),
+              child: Text(
+                'Encerrar',
+                style: TextStyle(color: p.vermelho, fontWeight: FontWeight.w600),
+              ),
             ),
           ],
         ),
@@ -268,12 +323,7 @@ class _Painel extends StatelessWidget {
             tween: Tween(end: total == 0 ? 0 : feitas / total),
             duration: const Duration(milliseconds: 450),
             curve: Curves.easeOutCubic,
-            builder: (_, valor, _) => LinearProgressIndicator(
-              value: valor,
-              minHeight: 6,
-              backgroundColor: p.preenchimento,
-              color: p.verde,
-            ),
+            builder: (_, valor, _) => LinearProgressIndicator(value: valor, minHeight: 6, backgroundColor: p.preenchimento, color: p.verde),
           ),
         ),
         const SizedBox(height: 16),
@@ -294,9 +344,7 @@ class _Painel extends StatelessWidget {
         if (inicioLista < total)
           Secao(
             titulo: 'Depois',
-            filhos: [
-              for (var i = inicioLista; i < total; i++) _LinhaParada(viagem: v, parada: v.paradas[i], ordem: i + 1),
-            ],
+            filhos: [for (var i = inicioLista; i < total; i++) _LinhaParada(viagem: v, parada: v.paradas[i], ordem: i + 1)],
           ),
         Secao(
           titulo: 'Linha do tempo',
@@ -338,8 +386,10 @@ class _ACaminho extends StatelessWidget {
                   ],
                 ),
               ),
-              Text('${(faltam * 4).ceil().clamp(1, 99)} min',
-                  style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: p.azul)),
+              Text(
+                '${(faltam * 4).ceil().clamp(1, 99)} min',
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: p.azul),
+              ),
             ],
           ),
           if (casa) ...[
@@ -353,8 +403,10 @@ class _ACaminho extends StatelessWidget {
                       children: [
                         Icon(CupertinoIcons.checkmark_seal_fill, color: p.verde, size: 18),
                         const SizedBox(width: 6),
-                        Text('Família avisada que você está chegando',
-                            style: TextStyle(color: p.verde, fontWeight: FontWeight.w600)),
+                        Text(
+                          'Família avisada que você está chegando',
+                          style: TextStyle(color: p.verde, fontWeight: FontWeight.w600),
+                        ),
                       ],
                     )
                   : Botao(
@@ -403,17 +455,24 @@ class _CartaoParada extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconeApp(escola ? CupertinoIcons.book_fill : CupertinoIcons.house_fill,
-                  cor: escola ? Paleta.marinhoMarca : p.laranja, tamanho: 42),
+              IconeApp(
+                escola ? CupertinoIcons.book_fill : CupertinoIcons.house_fill,
+                cor: escola ? Paleta.marinhoMarca : p.laranja,
+                tamanho: 42,
+              ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(desembarque ? 'Desembarque' : 'Embarque',
-                        style: TextStyle(color: p.textoSuave, fontSize: 13, fontWeight: FontWeight.w600)),
-                    Text(escola ? parada.titulo : 'Casa de ${parada.titulo}',
-                        style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
+                    Text(
+                      desembarque ? 'Desembarque' : 'Embarque',
+                      style: TextStyle(color: p.textoSuave, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      escola ? parada.titulo : 'Casa de ${parada.titulo}',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, letterSpacing: -0.3),
+                    ),
                   ],
                 ),
               ),
@@ -426,24 +485,27 @@ class _CartaoParada extends StatelessWidget {
             duration: const Duration(milliseconds: 250),
             child: resolvida
                 ? (store.seguirAutomaticamente
-                    ? Row(
-                        key: const ValueKey('seguindo'),
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const CupertinoActivityIndicator(radius: 8),
-                          const SizedBox(width: 10),
-                          Text('Seguindo para a próxima…', style: TextStyle(color: p.textoSuave, fontWeight: FontWeight.w600)),
-                        ],
-                      )
-                    : Botao('Próxima parada', key: const ValueKey('seguir'), icone: CupertinoIcons.arrow_right, aoTocar: store.seguir))
+                      ? Row(
+                          key: const ValueKey('seguindo'),
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                            const SizedBox(width: 10),
+                            Text(
+                              'Seguindo para a próxima…',
+                              style: TextStyle(color: p.textoSuave, fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        )
+                      : Botao('Próxima parada', key: const ValueKey('seguir'), icone: CupertinoIcons.arrow_right, aoTocar: store.seguir))
                 : parada.alunoIds.length > 1
-                    ? Botao(
-                        desembarque ? 'Todos desceram' : 'Todos embarcaram',
-                        key: const ValueKey('todos'),
-                        estilo: EstiloBotao.secundario,
-                        aoTocar: () => store.resolverParadaInteira(parada, desembarque ? SituacaoAluno.entregue : SituacaoAluno.aBordo),
-                      )
-                    : const SizedBox.shrink(),
+                ? Botao(
+                    desembarque ? 'Todos desceram' : 'Todos embarcaram',
+                    key: const ValueKey('todos'),
+                    estilo: EstiloBotao.secundario,
+                    aoTocar: () => store.resolverParadaInteira(parada, desembarque ? SituacaoAluno.entregue : SituacaoAluno.aBordo),
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
       ),
@@ -477,14 +539,19 @@ class _Chamada extends StatelessWidget {
               children: [
                 Text(aluno.nome, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
                 if (aluno.cuidados.isNotEmpty)
-                  Row(children: [
-                    Icon(CupertinoIcons.heart_circle_fill, size: 13, color: p.vermelho),
-                    const SizedBox(width: 3),
-                    Flexible(
-                      child: Text(aluno.cuidados,
-                          style: TextStyle(color: p.vermelho, fontSize: 12.5, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis),
-                    ),
-                  ]),
+                  Row(
+                    children: [
+                      Icon(CupertinoIcons.heart_circle_fill, size: 13, color: p.vermelho),
+                      const SizedBox(width: 3),
+                      Flexible(
+                        child: Text(
+                          aluno.cuidados,
+                          style: TextStyle(color: p.vermelho, fontSize: 12.5, fontWeight: FontWeight.w500),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
           ),
@@ -494,27 +561,27 @@ class _Chamada extends StatelessWidget {
             child: !pendente
                 ? _SeloSituacao(s, key: ValueKey(s))
                 : desembarque
-                    ? _Redondo(
-                        key: const ValueKey('desceu'),
+                ? _Redondo(
+                    key: const ValueKey('desceu'),
+                    icone: CupertinoIcons.checkmark_alt,
+                    cor: p.verde,
+                    cheio: true,
+                    aoTocar: () => store.marcar(aluno.id, SituacaoAluno.entregue),
+                  )
+                : Row(
+                    key: const ValueKey('botoes'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _Redondo(icone: CupertinoIcons.xmark, cor: p.vermelho, aoTocar: () => store.marcar(aluno.id, SituacaoAluno.faltou)),
+                      const SizedBox(width: 10),
+                      _Redondo(
                         icone: CupertinoIcons.checkmark_alt,
                         cor: p.verde,
                         cheio: true,
-                        aoTocar: () => store.marcar(aluno.id, SituacaoAluno.entregue),
-                      )
-                    : Row(
-                        key: const ValueKey('botoes'),
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          _Redondo(icone: CupertinoIcons.xmark, cor: p.vermelho, aoTocar: () => store.marcar(aluno.id, SituacaoAluno.faltou)),
-                          const SizedBox(width: 10),
-                          _Redondo(
-                            icone: CupertinoIcons.checkmark_alt,
-                            cor: p.verde,
-                            cheio: true,
-                            aoTocar: () => store.marcar(aluno.id, SituacaoAluno.aBordo),
-                          ),
-                        ],
+                        aoTocar: () => store.marcar(aluno.id, SituacaoAluno.aBordo),
                       ),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -594,10 +661,13 @@ class _LinhaParada extends StatelessWidget {
             ),
       titulo: parada.titulo,
       subtitulo: escola ? '${parada.alunoIds.length} alunos' : parada.subtitulo,
-      fim: Row(mainAxisSize: MainAxisSize.min, children: [
-        if (cuidado && !escola) ...[Icon(CupertinoIcons.heart_circle_fill, color: p.vermelho, size: 16), const SizedBox(width: 6)],
-        Text('$min min', style: TextStyle(color: p.textoSuave)),
-      ]),
+      fim: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (cuidado && !escola) ...[Icon(CupertinoIcons.heart_circle_fill, color: p.vermelho, size: 16), const SizedBox(width: 6)],
+          Text('$min min', style: TextStyle(color: p.textoSuave)),
+        ],
+      ),
     );
   }
 }
@@ -647,23 +717,46 @@ class _Resumo extends StatelessWidget {
       children: [
         Center(child: IconeApp(CupertinoIcons.checkmark_alt, cor: p.verde, tamanho: 64)),
         const SizedBox(height: 14),
-        const Text('Viagem concluída', textAlign: TextAlign.center, style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.6)),
-        Text(viagem.trajeto.nome, textAlign: TextAlign.center, style: TextStyle(color: p.textoSuave)),
+        const Text(
+          'Viagem concluída',
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.6),
+        ),
+        Text(
+          viagem.trajeto.nome,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: p.textoSuave),
+        ),
         Secao(
           filhos: [
-            Linha(inicio: IconeApp(CupertinoIcons.person_2_fill, cor: p.verde), titulo: 'Transportados',
-                fim: Text('${conta((x) => x == SituacaoAluno.entregue || x == SituacaoAluno.aBordo)}', style: const TextStyle(fontWeight: FontWeight.w700))),
-            Linha(inicio: IconeApp(CupertinoIcons.xmark, cor: p.vermelho), titulo: 'Não vieram',
-                fim: Text('${conta((x) => x == SituacaoAluno.faltou)}', style: const TextStyle(fontWeight: FontWeight.w700))),
-            Linha(inicio: IconeApp(CupertinoIcons.calendar_badge_minus, cor: p.laranja), titulo: 'Avisaram ausência',
-                fim: Text('${conta((x) => x == SituacaoAluno.avisado)}', style: const TextStyle(fontWeight: FontWeight.w700))),
+            Linha(
+              inicio: IconeApp(CupertinoIcons.person_2_fill, cor: p.verde),
+              titulo: 'Transportados',
+              fim: Text(
+                '${conta((x) => x == SituacaoAluno.entregue || x == SituacaoAluno.aBordo)}',
+                style: const TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+            Linha(
+              inicio: IconeApp(CupertinoIcons.xmark, cor: p.vermelho),
+              titulo: 'Não vieram',
+              fim: Text('${conta((x) => x == SituacaoAluno.faltou)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
+            Linha(
+              inicio: IconeApp(CupertinoIcons.calendar_badge_minus, cor: p.laranja),
+              titulo: 'Avisaram ausência',
+              fim: Text('${conta((x) => x == SituacaoAluno.avisado)}', style: const TextStyle(fontWeight: FontWeight.w700)),
+            ),
           ],
         ),
         const SizedBox(height: 22),
-        Botao('Concluir', aoTocar: () {
-          Navigator.pop(context);
-          store.descartarViagem();
-        }),
+        Botao(
+          'Concluir',
+          aoTocar: () {
+            Navigator.pop(context);
+            store.descartarViagem();
+          },
+        ),
       ],
     );
   }

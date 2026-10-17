@@ -44,11 +44,7 @@ class _TocavelState extends State<Tocavel> {
         scale: _pressionado ? widget.escala : 1,
         duration: const Duration(milliseconds: 140),
         curve: Curves.easeOutCubic,
-        child: AnimatedOpacity(
-          opacity: _pressionado ? 0.75 : 1,
-          duration: const Duration(milliseconds: 140),
-          child: widget.child,
-        ),
+        child: AnimatedOpacity(opacity: _pressionado ? 0.75 : 1, duration: const Duration(milliseconds: 140), child: widget.child),
       ),
     );
   }
@@ -80,16 +76,9 @@ class IconeApp extends StatelessWidget {
   }
 }
 
-/// Página com título grande que encolhe ao rolar e barra translúcida (blur).
+/// Página com título grande que encolhe ao rolar (igual no Android e no iPhone).
 class PaginaIOS extends StatelessWidget {
-  const PaginaIOS({
-    super.key,
-    required this.titulo,
-    required this.filhos,
-    this.acao,
-    this.voltar = false,
-    this.rodape,
-  });
+  const PaginaIOS({super.key, required this.titulo, required this.filhos, this.acao, this.voltar = false, this.rodape});
 
   final String titulo;
   final List<Widget> filhos;
@@ -104,22 +93,49 @@ class PaginaIOS extends StatelessWidget {
       backgroundColor: p.fundo,
       body: CustomScrollView(
         slivers: [
-          CupertinoSliverNavigationBar(
-            largeTitle: Text(titulo),
-            backgroundColor: p.fundo.withValues(alpha: 0.82),
-            border: null,
-            automaticallyImplyLeading: voltar,
-            previousPageTitle: voltar ? 'Voltar' : null,
-            trailing: acao,
-            stretch: true,
+          SliverAppBar.large(
+            title: Text(titulo, maxLines: 1, overflow: TextOverflow.ellipsis),
+            backgroundColor: p.fundo,
+            surfaceTintColor: Colors.transparent,
+            scrolledUnderElevation: 0,
+            automaticallyImplyLeading: false,
+            leadingWidth: voltar ? 64 : 0,
+            leading: voltar ? const BotaoVoltar() : null,
+            actions: [?acao, const SizedBox(width: 12)],
           ),
           SliverPadding(
-            padding: EdgeInsets.fromLTRB(16, 4, 16, 32 + MediaQuery.paddingOf(context).bottom),
+            padding: EdgeInsets.fromLTRB(16, 0, 16, 32 + MediaQuery.paddingOf(context).bottom),
             sliver: SliverList(delegate: SliverChildListDelegate(filhos)),
           ),
         ],
       ),
       bottomNavigationBar: rodape,
+    );
+  }
+}
+
+/// Botão de voltar redondo e suave.
+class BotaoVoltar extends StatelessWidget {
+  const BotaoVoltar({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.cores;
+    return Center(
+      child: Tocavel(
+        aoTocar: () => Navigator.of(context).maybePop(),
+        escala: 0.9,
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: p.cartao,
+            shape: BoxShape.circle,
+            border: Border.all(color: p.separador),
+          ),
+          child: Icon(Icons.arrow_back_rounded, size: 20, color: p.texto),
+        ),
+      ),
     );
   }
 }
@@ -144,8 +160,10 @@ class Secao extends StatelessWidget {
           if (titulo != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 7),
-              child: Text(titulo!.toUpperCase(),
-                  style: TextStyle(color: p.textoSuave, fontSize: 12.5, letterSpacing: 0.2, fontWeight: FontWeight.w500)),
+              child: Text(
+                titulo!.toUpperCase(),
+                style: TextStyle(color: p.textoSuave, fontSize: 12.5, letterSpacing: 0.2, fontWeight: FontWeight.w500),
+              ),
             ),
           ClipRRect(
             borderRadius: BorderRadius.circular(14),
@@ -154,7 +172,11 @@ class Secao extends StatelessWidget {
               child: Column(
                 children: [
                   for (var i = 0; i < filhos.length; i++) ...[
-                    if (i > 0) Padding(padding: EdgeInsets.only(left: recuo), child: Divider(color: p.separador)),
+                    if (i > 0)
+                      Padding(
+                        padding: EdgeInsets.only(left: recuo),
+                        child: Divider(color: p.separador),
+                      ),
                     filhos[i],
                   ],
                 ],
@@ -173,16 +195,7 @@ class Secao extends StatelessWidget {
 }
 
 class Linha extends StatelessWidget {
-  const Linha({
-    super.key,
-    required this.titulo,
-    this.subtitulo,
-    this.inicio,
-    this.fim,
-    this.aoTocar,
-    this.seta,
-    this.corTitulo,
-  });
+  const Linha({super.key, required this.titulo, this.subtitulo, this.inicio, this.fim, this.aoTocar, this.seta, this.corTitulo});
 
   final String titulo;
   final String? subtitulo;
@@ -208,11 +221,18 @@ class Linha extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(titulo,
-                      style: TextStyle(fontSize: 16.5, letterSpacing: -0.3, color: corTitulo ?? p.texto, fontWeight: FontWeight.w500)),
+                  Text(
+                    titulo,
+                    style: TextStyle(fontSize: 16.5, letterSpacing: -0.3, color: corTitulo ?? p.texto, fontWeight: FontWeight.w500),
+                  ),
                   if (subtitulo != null) ...[
                     const SizedBox(height: 2),
-                    Text(subtitulo!, style: TextStyle(fontSize: 13.5, color: p.textoSuave), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    Text(
+                      subtitulo!,
+                      style: TextStyle(fontSize: 13.5, color: p.textoSuave),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ],
                 ],
               ),
@@ -220,7 +240,7 @@ class Linha extends StatelessWidget {
             if (fim != null) ...[const SizedBox(width: 8), fim!],
             if (mostrarSeta) ...[
               const SizedBox(width: 6),
-              Icon(CupertinoIcons.chevron_right, size: 16, color: p.cinza.withValues(alpha: 0.7)),
+              Icon(Icons.chevron_right_rounded, size: 22, color: p.cinza.withValues(alpha: 0.7)),
             ],
           ],
         ),
@@ -251,8 +271,10 @@ class Avatar extends StatelessWidget {
         ),
       ),
       alignment: Alignment.center,
-      child: Text(iniciais(nome),
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: tamanho * 0.38)),
+      child: Text(
+        iniciais(nome),
+        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: tamanho * 0.38),
+      ),
     );
   }
 }
@@ -274,7 +296,10 @@ class Selo extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icone != null) ...[Icon(icone, size: 12, color: cor), const SizedBox(width: 4)],
-          Text(texto, style: TextStyle(color: cor, fontSize: 12.5, fontWeight: FontWeight.w600)),
+          Text(
+            texto,
+            style: TextStyle(color: cor, fontSize: 12.5, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -316,8 +341,10 @@ class Botao extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (icone != null) ...[Icon(icone, color: frente, size: compacto ? 17 : 20), const SizedBox(width: 8)],
-              Text(texto,
-                  style: TextStyle(color: frente, fontSize: compacto ? 15 : 17, fontWeight: FontWeight.w600, letterSpacing: -0.3)),
+              Text(
+                texto,
+                style: TextStyle(color: frente, fontSize: compacto ? 15 : 17, fontWeight: FontWeight.w600, letterSpacing: -0.3),
+              ),
             ],
           ),
         ),
@@ -362,10 +389,18 @@ class Vazio extends StatelessWidget {
         children: [
           Icon(icone, size: 44, color: p.cinza),
           const SizedBox(height: 12),
-          Text(titulo, style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700), textAlign: TextAlign.center),
+          Text(
+            titulo,
+            style: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center,
+          ),
           if (texto != null) ...[
             const SizedBox(height: 4),
-            Text(texto!, style: TextStyle(color: p.textoSuave), textAlign: TextAlign.center),
+            Text(
+              texto!,
+              style: TextStyle(color: p.textoSuave),
+              textAlign: TextAlign.center,
+            ),
           ],
         ],
       ),
@@ -383,8 +418,7 @@ class PontoAoVivo extends StatefulWidget {
 }
 
 class _PontoAoVivoState extends State<PontoAoVivo> with SingleTickerProviderStateMixin {
-  late final AnimationController _c =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
+  late final AnimationController _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))..repeat(reverse: true);
 
   @override
   void dispose() {
@@ -419,21 +453,38 @@ class LogoVanConnect extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconeApp(CupertinoIcons.bus, cor: Paleta.azulMarca, tamanho: tamanho * 1.25, solido: true),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(tamanho * 0.34),
+          child: Image.asset('assets/icone.png', width: tamanho * 1.3, height: tamanho * 1.3, filterQuality: FilterQuality.medium),
+        ),
         SizedBox(width: tamanho * 0.35),
-        Text('Van', style: TextStyle(fontSize: tamanho, fontWeight: FontWeight.w800, color: corVan, letterSpacing: -1)),
-        Text('Connect',
-            style: TextStyle(fontSize: tamanho, fontWeight: FontWeight.w800, color: p.escuro || sobreEscuro ? const Color(0xFF5AB0FF) : Paleta.azulMarca, letterSpacing: -1)),
+        Text(
+          'Van',
+          style: TextStyle(fontSize: tamanho, fontWeight: FontWeight.w800, color: corVan, letterSpacing: -1),
+        ),
+        Text(
+          'Connect',
+          style: TextStyle(
+            fontSize: tamanho,
+            fontWeight: FontWeight.w800,
+            color: p.escuro || sobreEscuro ? const Color(0xFF5AB0FF) : Paleta.azulMarca,
+            letterSpacing: -1,
+          ),
+        ),
         Padding(
           padding: EdgeInsets.only(bottom: tamanho * 0.7),
-          child: Icon(CupertinoIcons.wifi, size: tamanho * 0.6, color: p.escuro || sobreEscuro ? const Color(0xFF5AB0FF) : Paleta.azulMarca),
+          child: Icon(
+            CupertinoIcons.wifi,
+            size: tamanho * 0.6,
+            color: p.escuro || sobreEscuro ? const Color(0xFF5AB0FF) : Paleta.azulMarca,
+          ),
         ),
       ],
     );
   }
 }
 
-/// Barra de abas translúcida com blur, como no iPhone.
+/// Barra de abas suave: ícone com "pílula" atrás do item ativo.
 class BarraAbas extends StatelessWidget {
   const BarraAbas({super.key, required this.indice, required this.aoMudar, required this.itens, this.topo});
 
@@ -452,23 +503,71 @@ class BarraAbas extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ?topo,
-            CupertinoTabBar(
-              currentIndex: indice,
-              onTap: (i) {
-                HapticFeedback.selectionClick();
-                aoMudar(i);
-              },
-              items: itens,
-              activeColor: p.azul,
-              inactiveColor: p.cinza,
-              iconSize: 26,
-              height: 54,
-              backgroundColor: p.cartao.withValues(alpha: p.escuro ? 0.8 : 0.88),
-              border: Border(top: BorderSide(color: p.separador, width: 0.5)),
+            Container(
+              decoration: BoxDecoration(
+                color: p.cartao.withValues(alpha: p.escuro ? 0.85 : 0.92),
+                border: Border(top: BorderSide(color: p.separador, width: 0.5)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: SizedBox(
+                  height: 64,
+                  child: Row(
+                    children: [
+                      for (final (i, item) in itens.indexed)
+                        Expanded(
+                          child: Tocavel(
+                            escala: 0.92,
+                            aoTocar: () {
+                              HapticFeedback.selectionClick();
+                              aoMudar(i);
+                            },
+                            child: _ItemAba(item: item, ativo: i == indice),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class _ItemAba extends StatelessWidget {
+  const _ItemAba({required this.item, required this.ativo});
+
+  final BottomNavigationBarItem item;
+  final bool ativo;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.cores;
+    final cor = ativo ? p.azul : p.cinza;
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          decoration: BoxDecoration(color: ativo ? p.suave(p.azul) : Colors.transparent, borderRadius: BorderRadius.circular(99)),
+          child: IconTheme(
+            data: IconThemeData(color: cor, size: 24),
+            child: ativo ? item.activeIcon : item.icon,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          item.label ?? '',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(fontSize: 11.5, color: cor, fontWeight: ativo ? FontWeight.w700 : FontWeight.w500),
+        ),
+      ],
     );
   }
 }
@@ -478,90 +577,195 @@ void avisar(BuildContext context, String texto, {IconData icone = CupertinoIcons
   final p = context.cores;
   ScaffoldMessenger.of(context)
     ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      duration: const Duration(milliseconds: 2600),
-      content: Row(
-        children: [
-          Icon(icone, color: cor ?? p.verde, size: 22),
-          const SizedBox(width: 10),
-          Expanded(child: Text(texto)),
-        ],
+    ..showSnackBar(
+      SnackBar(
+        duration: const Duration(milliseconds: 2600),
+        content: Row(
+          children: [
+            Icon(icone, color: cor ?? p.verde, size: 22),
+            const SizedBox(width: 10),
+            Expanded(child: Text(texto)),
+          ],
+        ),
       ),
-    ));
+    );
 }
 
+/// Diálogo de confirmação suave, igual no Android e no iPhone.
 Future<bool> confirmar(
   BuildContext context, {
   required String titulo,
   required String mensagem,
   required String acao,
   bool destrutiva = false,
+  String cancelar = 'Cancelar',
 }) async {
-  final ok = await showCupertinoDialog<bool>(
+  final ok = await showGeneralDialog<bool>(
     context: context,
     barrierDismissible: true,
-    builder: (_) => CupertinoAlertDialog(
-      title: Text(titulo),
-      content: Padding(padding: const EdgeInsets.only(top: 6), child: Text(mensagem)),
-      actions: [
-        CupertinoDialogAction(onPressed: () => Navigator.pop(context, false), child: const Text('Cancelar')),
-        CupertinoDialogAction(
-          isDefaultAction: !destrutiva,
-          isDestructiveAction: destrutiva,
-          onPressed: () => Navigator.pop(context, true),
-          child: Text(acao),
+    barrierLabel: 'Fechar',
+    barrierColor: Colors.black.withValues(alpha: 0.35),
+    transitionDuration: const Duration(milliseconds: 260),
+    pageBuilder: (ctx, _, _) {
+      final p = ctx.cores;
+      final cor = destrutiva ? p.vermelho : p.azul;
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Material(
+              color: p.cartao,
+              borderRadius: BorderRadius.circular(26),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(22, 24, 22, 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(color: p.suave(cor), shape: BoxShape.circle),
+                      child: Icon(destrutiva ? Icons.warning_amber_rounded : Icons.help_outline_rounded, color: cor, size: 28),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      titulo,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 19, fontWeight: FontWeight.w800, letterSpacing: -0.4, color: p.texto),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      mensagem,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: p.textoSuave, height: 1.4),
+                    ),
+                    const SizedBox(height: 22),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _BotaoDialogo(
+                            cancelar,
+                            cor: p.textoSuave,
+                            fundo: p.preenchimento,
+                            aoTocar: () => Navigator.pop(ctx, false),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _BotaoDialogo(acao, cor: Colors.white, fundo: cor, aoTocar: () => Navigator.pop(ctx, true)),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
         ),
-      ],
+      );
+    },
+    transitionBuilder: (_, anim, _, child) => FadeTransition(
+      opacity: anim,
+      child: ScaleTransition(
+        scale: Tween(begin: 0.92, end: 1.0).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
+        child: child,
+      ),
     ),
   );
   return ok ?? false;
 }
 
-class OpcaoAcao<T> {
-  const OpcaoAcao(this.rotulo, this.valor, {this.destrutiva = false});
+class _BotaoDialogo extends StatelessWidget {
+  const _BotaoDialogo(this.texto, {required this.cor, required this.fundo, required this.aoTocar});
 
-  final String rotulo;
-  final T valor;
-  final bool destrutiva;
-}
+  final String texto;
+  final Color cor;
+  final Color fundo;
+  final VoidCallback aoTocar;
 
-/// Folha de ações do iOS (escolhas rápidas vindas de baixo).
-Future<T?> escolherAcao<T>(BuildContext context, {String? titulo, String? mensagem, required List<OpcaoAcao<T>> opcoes}) {
-  return showCupertinoModalPopup<T>(
-    context: context,
-    builder: (_) => CupertinoActionSheet(
-      title: titulo == null ? null : Text(titulo),
-      message: mensagem == null ? null : Text(mensagem),
-      actions: [
-        for (final o in opcoes)
-          CupertinoActionSheetAction(
-            isDestructiveAction: o.destrutiva,
-            onPressed: () => Navigator.pop(context, o.valor),
-            child: Text(o.rotulo),
-          ),
-      ],
-      cancelButton: CupertinoActionSheetAction(
-        isDefaultAction: true,
-        onPressed: () => Navigator.pop(context),
-        child: const Text('Cancelar'),
+  @override
+  Widget build(BuildContext context) => Tocavel(
+    aoTocar: aoTocar,
+    child: Container(
+      height: 48,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(14)),
+      child: Text(
+        texto,
+        style: TextStyle(color: cor, fontWeight: FontWeight.w700, fontSize: 15.5),
       ),
     ),
   );
 }
 
-/// Abre uma página com a transição lateral do iOS.
-Future<T?> abrir<T>(BuildContext context, Widget pagina) =>
-    Navigator.of(context).push<T>(CupertinoPageRoute(builder: (_) => pagina));
+class OpcaoAcao<T> {
+  const OpcaoAcao(this.rotulo, this.valor, {this.destrutiva = false, this.icone});
 
-/// Abre uma folha (sheet) que sobe de baixo, como os modais do iOS.
-Future<T?> abrirFolha<T>(BuildContext context, Widget conteudo) => showModalBottomSheet<T>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      builder: (_) => conteudo,
-    );
+  final String rotulo;
+  final T valor;
+  final bool destrutiva;
+  final IconData? icone;
+}
 
-/// Controle segmentado do iOS, já com as cores do tema.
+/// Lista de escolhas que sobe de baixo, em cartão suave.
+Future<T?> escolherAcao<T>(BuildContext context, {String? titulo, String? mensagem, required List<OpcaoAcao<T>> opcoes}) {
+  return showModalBottomSheet<T>(
+    context: context,
+    useSafeArea: true,
+    isScrollControlled: true,
+    builder: (ctx) {
+      final p = ctx.cores;
+      return SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (titulo != null)
+              Text(
+                titulo,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w800, color: p.texto),
+              ),
+            if (mensagem != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                mensagem,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: p.textoSuave),
+              ),
+            ],
+            Secao(
+              recuo: 16,
+              filhos: [
+                for (final o in opcoes)
+                  Linha(
+                    inicio: o.icone == null ? null : IconeApp(o.icone!, cor: o.destrutiva ? p.vermelho : p.azul),
+                    titulo: o.rotulo,
+                    corTitulo: o.destrutiva ? p.vermelho : null,
+                    seta: false,
+                    aoTocar: () => Navigator.pop(ctx, o.valor),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _BotaoDialogo('Cancelar', cor: p.textoSuave, fundo: p.preenchimento, aoTocar: () => Navigator.pop(ctx)),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+/// Abre uma página com a transição padrão de cada sistema.
+Future<T?> abrir<T>(BuildContext context, Widget pagina) => Navigator.of(context).push<T>(MaterialPageRoute(builder: (_) => pagina));
+
+/// Abre uma folha (sheet) que sobe de baixo.
+Future<T?> abrirFolha<T>(BuildContext context, Widget conteudo) =>
+    showModalBottomSheet<T>(context: context, isScrollControlled: true, useSafeArea: true, builder: (_) => conteudo);
+
+/// Seletor segmentado em "pílula", com o marcador deslizando entre as opções.
 class Segmentos<T extends Object> extends StatelessWidget {
   const Segmentos({super.key, required this.valor, required this.opcoes, required this.aoMudar});
 
@@ -572,71 +776,203 @@ class Segmentos<T extends Object> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = context.cores;
-    return SizedBox(
-      width: double.infinity,
-      child: CupertinoSlidingSegmentedControl<T>(
-        groupValue: valor,
-        backgroundColor: p.preenchimento,
-        thumbColor: p.escuro ? p.elevado : Colors.white,
-        onValueChanged: (v) {
-          if (v != null) {
-            HapticFeedback.selectionClick();
-            aoMudar(v);
-          }
-        },
-        children: {
-          for (final e in opcoes.entries)
-            e.key: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
-              child: Text(e.value, overflow: TextOverflow.ellipsis, style: TextStyle(color: p.texto, fontSize: 14)),
-            ),
+    final chaves = opcoes.keys.toList();
+    final indice = chaves.indexOf(valor).clamp(0, chaves.length - 1);
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(color: p.preenchimento, borderRadius: BorderRadius.circular(14)),
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final largura = c.maxWidth / chaves.length;
+          return Stack(
+            children: [
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                left: largura * indice,
+                top: 0,
+                bottom: 0,
+                width: largura,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: p.escuro ? p.elevado : Colors.white,
+                    borderRadius: BorderRadius.circular(11),
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 6, offset: const Offset(0, 2))],
+                  ),
+                ),
+              ),
+              Row(
+                children: [
+                  for (final (i, k) in chaves.indexed)
+                    Expanded(
+                      child: GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () {
+                          if (k == valor) return;
+                          HapticFeedback.selectionClick();
+                          aoMudar(k);
+                        },
+                        child: Center(
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Text(
+                              opcoes[k]!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: i == indice ? p.texto : p.textoSuave,
+                                fontWeight: i == indice ? FontWeight.w700 : FontWeight.w500,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ],
+          );
         },
       ),
     );
   }
 }
 
-/// Roleta de horário do iOS. Retorna minutos desde meia-noite (ou null se cancelar).
-Future<int?> escolherHorario(BuildContext context, int minutos) async {
-  var escolhido = minutos;
-  final ok = await showCupertinoModalPopup<bool>(
-    context: context,
-    builder: (ctx) => Container(
-      height: 300,
-      decoration: BoxDecoration(
-        color: context.cores.cartao,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(14)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          children: [
-            Row(children: [
-              CupertinoButton(child: const Text('Cancelar'), onPressed: () => Navigator.pop(ctx, false)),
-              const Spacer(),
-              CupertinoButton(child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w700)), onPressed: () => Navigator.pop(ctx, true)),
-            ]),
-            Expanded(
-              child: CupertinoTheme(
-                data: CupertinoThemeData(brightness: context.cores.escuro ? Brightness.dark : Brightness.light),
-                child: CupertinoDatePicker(
-                  mode: CupertinoDatePickerMode.time,
-                  use24hFormat: true,
-                  minuteInterval: 5,
-                  initialDateTime: DateTime(2000, 1, 1, minutos ~/ 60, (minutos % 60) ~/ 5 * 5),
-                  onDateTimeChanged: (d) => escolhido = d.hour * 60 + d.minute,
-                ),
-              ),
+/// Chave liga/desliga suave (mesmo visual no Android e no iPhone).
+class Chave extends StatelessWidget {
+  const Chave({super.key, required this.valor, required this.aoMudar});
+
+  final bool valor;
+  final ValueChanged<bool> aoMudar;
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.cores;
+    return Tocavel(
+      escala: 0.95,
+      aoTocar: () => aoMudar(!valor),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        width: 50,
+        height: 30,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(color: valor ? p.azul : p.preenchimento, borderRadius: BorderRadius.circular(99)),
+        child: AnimatedAlign(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          alignment: valor ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            width: 24,
+            height: 24,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.15), blurRadius: 4, offset: const Offset(0, 1))],
             ),
-          ],
+          ),
         ),
       ),
-    ),
-  );
-  return ok == true ? escolhido : null;
+    );
+  }
 }
 
-/// Folha de formulário no padrão iOS: Cancelar · Título · Salvar.
+/// Escolha de horário em grade (hora e minutos), sem roleta.
+/// Retorna minutos desde meia-noite, ou null se cancelar.
+Future<int?> escolherHorario(BuildContext context, int minutos) {
+  return showModalBottomSheet<int>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (_) => _GradeHorario(inicial: minutos),
+  );
+}
+
+class _GradeHorario extends StatefulWidget {
+  const _GradeHorario({required this.inicial});
+
+  final int inicial;
+
+  @override
+  State<_GradeHorario> createState() => _GradeHorarioState();
+}
+
+class _GradeHorarioState extends State<_GradeHorario> {
+  late int _hora = widget.inicial ~/ 60;
+  late int _minuto = (widget.inicial % 60) ~/ 5 * 5;
+
+  Widget _opcao(String texto, bool marcado, VoidCallback aoTocar) {
+    final p = context.cores;
+    return Tocavel(
+      escala: 0.92,
+      aoTocar: aoTocar,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(color: marcado ? p.azul : p.preenchimento, borderRadius: BorderRadius.circular(12)),
+        child: Text(
+          texto,
+          style: TextStyle(color: marcado ? Colors.white : p.texto, fontWeight: FontWeight.w700, fontSize: 15),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.cores;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            '${doisDigitos(_hora)}:${doisDigitos(_minuto)}',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 40, fontWeight: FontWeight.w800, letterSpacing: -1, color: p.texto),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Hora',
+            style: TextStyle(color: p.textoSuave, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          GridView.count(
+            crossAxisCount: 6,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 6,
+            childAspectRatio: 1.5,
+            children: [for (var h = 0; h < 24; h++) _opcao(doisDigitos(h), h == _hora, () => setState(() => _hora = h))],
+          ),
+          const SizedBox(height: 14),
+          Text(
+            'Minutos',
+            style: TextStyle(color: p.textoSuave, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          GridView.count(
+            crossAxisCount: 6,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 6,
+            crossAxisSpacing: 6,
+            childAspectRatio: 1.5,
+            children: [for (var m = 0; m < 60; m += 5) _opcao(doisDigitos(m), m == _minuto, () => setState(() => _minuto = m))],
+          ),
+          const SizedBox(height: 18),
+          Botao('Confirmar', icone: Icons.check_rounded, aoTocar: () => Navigator.pop(context, _hora * 60 + _minuto)),
+        ],
+      ),
+    );
+  }
+}
+
+/// Folha de formulário: título com botão de fechar e "Salvar" grande no fim.
 class Formulario extends StatelessWidget {
   const Formulario({
     super.key,
@@ -645,6 +981,7 @@ class Formulario extends StatelessWidget {
     required this.aoSalvar,
     this.podeSalvar = true,
     this.aoExcluir,
+    this.rotuloSalvar = 'Salvar',
   });
 
   final String titulo;
@@ -652,6 +989,7 @@ class Formulario extends StatelessWidget {
   final VoidCallback aoSalvar;
   final bool podeSalvar;
   final VoidCallback? aoExcluir;
+  final String rotuloSalvar;
 
   @override
   Widget build(BuildContext context) {
@@ -662,35 +1000,49 @@ class Formulario extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(children: [
-              CupertinoButton(padding: EdgeInsets.zero, onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-              Expanded(
-                child: Text(titulo, textAlign: TextAlign.center, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-              ),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: podeSalvar ? aoSalvar : null,
-                child: const Text('Salvar', style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
-            ]),
-            const SizedBox(height: 8),
-            ...campos,
-            if (aoExcluir != null)
-              Secao(
-                recuo: 14,
-                filhos: [
-                  Linha(
-                    titulo: 'Excluir',
-                    corTitulo: p.vermelho,
-                    seta: false,
-                    aoTocar: () async {
-                      if (await confirmar(context, titulo: 'Excluir?', mensagem: 'Essa ação não pode ser desfeita.', acao: 'Excluir', destrutiva: true)) {
-                        aoExcluir!();
-                      }
-                    },
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    titulo,
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: p.texto),
                   ),
-                ],
+                ),
+                Tocavel(
+                  aoTocar: () => Navigator.pop(context),
+                  escala: 0.9,
+                  child: Container(
+                    width: 36,
+                    height: 36,
+                    decoration: BoxDecoration(color: p.preenchimento, shape: BoxShape.circle),
+                    child: Icon(Icons.close_rounded, size: 20, color: p.textoSuave),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            ...campos,
+            const SizedBox(height: 16),
+            Botao(rotuloSalvar, icone: Icons.check_rounded, aoTocar: podeSalvar ? aoSalvar : null),
+            if (aoExcluir != null) ...[
+              const SizedBox(height: 10),
+              Botao(
+                'Excluir',
+                estilo: EstiloBotao.destrutivo,
+                icone: Icons.delete_outline_rounded,
+                aoTocar: () async {
+                  if (await confirmar(
+                    context,
+                    titulo: 'Excluir?',
+                    mensagem: 'Essa ação não pode ser desfeita.',
+                    acao: 'Excluir',
+                    destrutiva: true,
+                  )) {
+                    aoExcluir!();
+                  }
+                },
               ),
+            ],
           ],
         ),
       ),
@@ -707,6 +1059,10 @@ class CampoTexto extends StatelessWidget {
     this.aoMudar,
     this.teclado,
     this.maiusculas = false,
+    this.formatadores,
+    this.erro,
+    this.oculto = false,
+    this.nomes = false,
   });
 
   final TextEditingController controle;
@@ -715,6 +1071,16 @@ class CampoTexto extends StatelessWidget {
   final VoidCallback? aoMudar;
   final TextInputType? teclado;
   final bool maiusculas;
+  final List<TextInputFormatter>? formatadores;
+
+  /// Mensagem de erro embaixo do campo (null = sem erro).
+  final String? erro;
+
+  /// Campo de senha.
+  final bool oculto;
+
+  /// Nomes próprios: primeira letra de cada palavra maiúscula.
+  final bool nomes;
 
   @override
   Widget build(BuildContext context) {
@@ -723,11 +1089,15 @@ class CampoTexto extends StatelessWidget {
       child: TextField(
         controller: controle,
         keyboardType: teclado,
+        obscureText: oculto,
+        inputFormatters: formatadores,
         textCapitalization: maiusculas
             ? TextCapitalization.characters
-            : (teclado == null ? TextCapitalization.sentences : TextCapitalization.none),
+            : nomes
+            ? TextCapitalization.words
+            : (teclado == null && !oculto ? TextCapitalization.sentences : TextCapitalization.none),
         onChanged: (_) => aoMudar?.call(),
-        decoration: InputDecoration(hintText: rotulo, prefixIcon: Icon(icone, size: 20)),
+        decoration: InputDecoration(hintText: rotulo, prefixIcon: Icon(icone, size: 20), errorText: erro, errorMaxLines: 2),
       ),
     );
   }

@@ -1,6 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Mapa (OpenStreetMap/CARTO) precisa de internet também na versão de produção. -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Localização do motorista durante a viagem (obrigatória para iniciar). -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <application
         android:label="Van Connect"
         android:name="${applicationName}"

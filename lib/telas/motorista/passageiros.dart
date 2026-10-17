@@ -7,15 +7,15 @@ import '../../app/tema.dart';
 import '../../componentes/ui.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/van_store.dart';
+import '../comum/endereco_tela.dart';
+import '../comum/escolas.dart';
 import 'convite.dart';
 import 'financeiro.dart';
 
 void abrirPassageiro(BuildContext context, Aluno a) => abrir(context, PassageiroTela(alunoId: a.id));
 
 void copiarCodigo(BuildContext context, String codigo) {
-  Clipboard.setData(ClipboardData(
-    text: 'Olá! Para acompanhar a van escolar pelo Van Connect, use o código $codigo no app.',
-  ));
+  Clipboard.setData(ClipboardData(text: 'Olá! Para acompanhar a van escolar pelo Van Connect, use o código $codigo no app.'));
   avisar(context, 'Convite com o código $codigo copiado', icone: CupertinoIcons.doc_on_doc_fill);
 }
 
@@ -49,21 +49,10 @@ class _PassageirosTelaState extends State<PassageirosTela> {
           child: Icon(CupertinoIcons.add_circled_solid, size: 28, color: p.azul),
         ),
         filhos: [
-          SizedBox(
-            width: double.infinity,
-            child: CupertinoSlidingSegmentedControl<int>(
-              groupValue: seg,
-              backgroundColor: p.preenchimento,
-              thumbColor: p.escuro ? p.elevado : Colors.white,
-              onValueChanged: (v) => widget.segmento.value = v ?? 0,
-              children: {
-                0: const Padding(padding: EdgeInsets.symmetric(vertical: 7), child: Text('Ativos')),
-                1: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 7),
-                  child: Text(store.solicitacoes.isEmpty ? 'Pedidos' : 'Pedidos (${store.solicitacoes.length})'),
-                ),
-              },
-            ),
+          Segmentos<int>(
+            valor: seg,
+            opcoes: {0: 'Ativos', 1: store.solicitacoes.isEmpty ? 'Pedidos' : 'Pedidos (${store.solicitacoes.length})'},
+            aoMudar: (v) => widget.segmento.value = v,
           ),
           const SizedBox(height: 12),
           AnimatedSwitcher(
@@ -78,10 +67,9 @@ class _PassageirosTelaState extends State<PassageirosTela> {
 
   Widget _ativos(BuildContext context, VanStore store, Paleta p) {
     final q = _busca.toLowerCase();
-    final lista = store.alunos
-        .where((a) => q.isEmpty || a.nome.toLowerCase().contains(q) || a.responsavel.nome.toLowerCase().contains(q))
-        .toList()
-      ..sort((a, b) => a.nome.compareTo(b.nome));
+    final lista =
+        store.alunos.where((a) => q.isEmpty || a.nome.toLowerCase().contains(q) || a.responsavel.nome.toLowerCase().contains(q)).toList()
+          ..sort((a, b) => a.nome.compareTo(b.nome));
     final porTurno = <Turno, List<Aluno>>{};
     for (final a in lista) {
       porTurno.putIfAbsent(a.turno, () => []).add(a);
@@ -91,11 +79,10 @@ class _PassageirosTelaState extends State<PassageirosTela> {
       key: const ValueKey('ativos'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        CupertinoSearchTextField(
-          placeholder: 'Buscar aluno ou responsável',
+        TextField(
           onChanged: (v) => setState(() => _busca = v),
           style: TextStyle(color: p.texto),
-          backgroundColor: p.preenchimento,
+          decoration: const InputDecoration(hintText: 'Buscar aluno ou responsável', prefixIcon: Icon(Icons.search_rounded)),
         ),
         if (lista.isEmpty) const Vazio(icone: CupertinoIcons.search, titulo: 'Ninguém encontrado'),
         for (final t in Turno.values)
@@ -127,22 +114,32 @@ class _PassageirosTelaState extends State<PassageirosTela> {
                   ],
                 ),
               ),
-              Botao('Compartilhar', compacto: true, estilo: EstiloBotao.secundario, icone: CupertinoIcons.share,
-                  aoTocar: () => copiarCodigo(context, store.codigoVan)),
+              Botao(
+                'Compartilhar',
+                compacto: true,
+                estilo: EstiloBotao.secundario,
+                icone: CupertinoIcons.share,
+                aoTocar: () => copiarCodigo(context, store.codigoVan),
+              ),
             ],
           ),
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: Text('Para quem chega sozinho: a família digita este código e o pedido aparece aqui para você aprovar. '
-              'Para quem você já atende, use Convidar na ficha do aluno: vai com filho e rota, sem aprovação.',
-              style: TextStyle(color: p.textoSuave, fontSize: 12.5)),
+          child: Text(
+            'Para quem chega sozinho: a família digita este código e o pedido aparece aqui para você aprovar. '
+            'Para quem você já atende, use Convidar na ficha do aluno: vai com filho e rota, sem aprovação.',
+            style: TextStyle(color: p.textoSuave, fontSize: 12.5),
+          ),
         ),
         if (store.solicitacoes.isEmpty)
           const Vazio(icone: CupertinoIcons.tray, titulo: 'Nenhum pedido', texto: 'Novos pedidos aparecem aqui.')
         else
           for (final s in store.solicitacoes)
-            Padding(padding: const EdgeInsets.only(top: 14), child: _CartaoPedido(pedido: s)),
+            Padding(
+              padding: const EdgeInsets.only(top: 14),
+              child: _CartaoPedido(pedido: s),
+            ),
       ],
     );
   }
@@ -167,11 +164,14 @@ class _LinhaAluno extends StatelessWidget {
         subtitulo: aluno.familiaConectada
             ? store.escola(aluno.escolaId).nome
             : '${store.escola(aluno.escolaId).nome} · ${store.conviteAtivoDe(aluno.id) != null ? 'convite enviado' : 'família sem app'}',
-        fim: Row(mainAxisSize: MainAxisSize.min, children: [
-          if (aluno.cuidados.isNotEmpty) Icon(CupertinoIcons.heart_circle_fill, color: p.vermelho, size: 18),
-          if (ausente) ...[const SizedBox(width: 4), Icon(CupertinoIcons.calendar_badge_minus, color: p.laranja, size: 18)],
-          if (atrasada) ...[const SizedBox(width: 4), Icon(CupertinoIcons.exclamationmark_circle_fill, color: p.vermelho, size: 18)],
-        ]),
+        fim: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (aluno.cuidados.isNotEmpty) Icon(CupertinoIcons.heart_circle_fill, color: p.vermelho, size: 18),
+            if (ausente) ...[const SizedBox(width: 4), Icon(CupertinoIcons.calendar_badge_minus, color: p.laranja, size: 18)],
+            if (atrasada) ...[const SizedBox(width: 4), Icon(CupertinoIcons.exclamationmark_circle_fill, color: p.vermelho, size: 18)],
+          ],
+        ),
         aoTocar: () => abrirPassageiro(context, aluno),
       ),
     );
@@ -187,6 +187,7 @@ class _CartaoPedido extends StatelessWidget {
   Widget build(BuildContext context) {
     final store = VanScope.of(context);
     final p = context.cores;
+    final escola = pedido.escolaId == null ? null : store.escola(pedido.escolaId!);
     return Cartao(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -200,41 +201,183 @@ class _CartaoPedido extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(pedido.nomeAluno, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-                    Text('${store.escola(pedido.escolaId).nome} · ${pedido.turno.rotulo}', style: TextStyle(color: p.textoSuave)),
+                    Text(pedido.turno.rotulo, style: TextStyle(color: p.textoSuave)),
                   ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Editar pedido',
+                onPressed: () => abrirFolha(context, _EditarPedido(pedido: pedido)),
+                icon: Icon(Icons.edit_outlined, color: p.azul),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(
+                escola == null ? Icons.help_outline_rounded : Icons.school_rounded,
+                size: 18,
+                color: escola == null ? p.vermelho : p.verde,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  escola == null
+                      ? 'Colégio "${pedido.escolaInformada}" não confirmado'
+                      : '${escola.nome}${pedido.escolaInformada == escola.nome ? '' : ' (pai escreveu "${pedido.escolaInformada}")'}',
+                  style: TextStyle(color: escola == null ? p.vermelho : p.texto, fontWeight: FontWeight.w600),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Text('${pedido.responsavel.parentesco}: ${pedido.responsavel.nome} · ${pedido.responsavel.telefone}\n${pedido.endereco}',
-              style: TextStyle(color: p.textoSuave, height: 1.4)),
+          const SizedBox(height: 6),
+          Text(
+            '${pedido.responsavel.parentesco}: ${pedido.responsavel.nome} · ${pedido.responsavel.telefone}\n${pedido.endereco}',
+            style: TextStyle(color: p.textoSuave, height: 1.4),
+          ),
           const SizedBox(height: 14),
           Row(
             children: [
               Expanded(
-                child: Botao('Recusar', estilo: EstiloBotao.destrutivo, compacto: true, aoTocar: () async {
-                  if (await confirmar(context,
+                child: Botao(
+                  'Recusar',
+                  estilo: EstiloBotao.destrutivo,
+                  compacto: true,
+                  aoTocar: () async {
+                    if (await confirmar(
+                      context,
                       titulo: 'Recusar pedido?',
                       mensagem: '${pedido.responsavel.nome} será avisado(a).',
                       acao: 'Recusar',
-                      destrutiva: true)) {
-                    store.recusar(pedido);
-                  }
-                }),
+                      destrutiva: true,
+                    )) {
+                      store.recusar(pedido);
+                    }
+                  },
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Botao('Aceitar', compacto: true, icone: CupertinoIcons.checkmark_alt, aoTocar: () {
-                  final rotas = store.aprovar(pedido);
-                  avisar(context,
-                      '${primeiroNome(pedido.nomeAluno)} entrou${rotas.isEmpty ? '' : ' em ${rotas.map((r) => r.nome).join(' e ')}'}');
-                }),
+                child: Botao(
+                  pedido.prontoParaAprovar ? 'Aceitar' : 'Revisar e aceitar',
+                  compacto: true,
+                  icone: Icons.check_rounded,
+                  aoTocar: () {
+                    // Sem colégio confirmado, abre a revisão antes de aceitar.
+                    if (!pedido.prontoParaAprovar) {
+                      abrirFolha(context, _EditarPedido(pedido: pedido, aceitarAoSalvar: true));
+                      return;
+                    }
+                    final rotas = store.aprovar(pedido);
+                    avisar(
+                      context,
+                      '${primeiroNome(pedido.nomeAluno)} entrou${rotas.isEmpty ? '' : ' em ${rotas.map((r) => r.nome).join(' e ')}'}',
+                    );
+                  },
+                ),
               ),
             ],
           ),
         ],
       ),
+    );
+  }
+}
+
+/// O motorista corrige o pedido (o pai pode ter mandado algo errado) e confirma o colégio.
+class _EditarPedido extends StatefulWidget {
+  const _EditarPedido({required this.pedido, this.aceitarAoSalvar = false});
+
+  final Solicitacao pedido;
+  final bool aceitarAoSalvar;
+
+  @override
+  State<_EditarPedido> createState() => _EditarPedidoState();
+}
+
+class _EditarPedidoState extends State<_EditarPedido> {
+  late final _nome = TextEditingController(text: widget.pedido.nomeAluno);
+  late final _responsavel = TextEditingController(text: widget.pedido.responsavel.nome);
+  late final _telefone = TextEditingController(text: widget.pedido.responsavel.telefone);
+  late String? _escolaId = widget.pedido.escolaId;
+  late Turno _turno = widget.pedido.turno;
+  late Endereco? _endereco = widget.pedido.enderecoCompleto;
+
+  @override
+  void dispose() {
+    for (final c in [_nome, _responsavel, _telefone]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final store = VanScope.of(context);
+    final p = context.cores;
+    final escola = _escolaId == null ? null : store.escola(_escolaId!);
+    return Formulario(
+      titulo: widget.aceitarAoSalvar ? 'Revisar e aceitar' : 'Editar pedido',
+      rotuloSalvar: widget.aceitarAoSalvar ? 'Salvar e aceitar' : 'Salvar',
+      podeSalvar: _nome.text.trim().isNotEmpty && (!widget.aceitarAoSalvar || _escolaId != null),
+      aoSalvar: () {
+        store.atualizarSolicitacao(
+          widget.pedido,
+          nomeAluno: _nome.text.trim(),
+          escolaId: _escolaId,
+          turno: _turno,
+          endereco: _endereco,
+          nomeResponsavel: _responsavel.text.trim(),
+          telefone: _telefone.text.trim(),
+        );
+        Navigator.pop(context);
+        if (widget.aceitarAoSalvar && widget.pedido.prontoParaAprovar) {
+          final rotas = store.aprovar(widget.pedido);
+          avisar(
+            context,
+            '${primeiroNome(widget.pedido.nomeAluno)} entrou${rotas.isEmpty ? '' : ' em ${rotas.map((r) => r.nome).join(' e ')}'}',
+          );
+        } else {
+          avisar(context, 'Pedido atualizado');
+        }
+      },
+      campos: [
+        Cartao(
+          cor: p.suave(p.azul),
+          padding: const EdgeInsets.all(12),
+          child: Text(
+            'O responsável informou o colégio "${widget.pedido.escolaInformada}". Confirme qual é o colégio certo.',
+            style: TextStyle(color: p.azul, fontWeight: FontWeight.w500),
+          ),
+        ),
+        const SizedBox(height: 12),
+        CampoTexto(controle: _nome, rotulo: 'Nome do aluno', icone: Icons.person_rounded, aoMudar: () => setState(() {})),
+        CampoSelecao(
+          rotulo: 'Colégio',
+          valor: escola?.nome,
+          detalhe: escola?.endereco,
+          icone: Icons.school_rounded,
+          erro: _escolaId == null ? 'Selecione o colégio' : null,
+          aoTocar: () async {
+            final e = await selecionarEscola(context, selecionadaId: _escolaId, sugestao: widget.pedido.escolaInformada);
+            if (e != null) setState(() => _escolaId = e.id);
+          },
+        ),
+        Segmentos<Turno>(valor: _turno, opcoes: {for (final t in Turno.values) t: t.rotulo}, aoMudar: (v) => setState(() => _turno = v)),
+        const SizedBox(height: 10),
+        CartaoEndereco(
+          endereco: _endereco,
+          rotulo: _endereco == null ? 'Endereço informado: ${widget.pedido.endereco}' : 'Endereço de embarque',
+          aoTocar: () async {
+            final e = await escolherEndereco(context, inicial: _endereco, titulo: 'Endereço de embarque');
+            if (e != null) setState(() => _endereco = e);
+          },
+        ),
+        const SizedBox(height: 10),
+        CampoTexto(controle: _responsavel, rotulo: 'Nome do responsável', icone: Icons.family_restroom_rounded),
+        CampoTexto(controle: _telefone, rotulo: 'WhatsApp', icone: Icons.phone_rounded, teclado: TextInputType.phone),
+      ],
     );
   }
 }
@@ -264,26 +407,48 @@ class PassageiroTela extends StatelessWidget {
       filhos: [
         Center(child: Avatar(a.nome, tamanho: 84)),
         const SizedBox(height: 10),
-        Text(a.nome, textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
-        Text('${escola.nome} · ${a.turno.rotulo}', textAlign: TextAlign.center, style: TextStyle(color: p.textoSuave)),
+        Text(
+          a.nome,
+          textAlign: TextAlign.center,
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+        ),
+        Text(
+          '${escola.nome} · ${a.turno.rotulo}',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: p.textoSuave),
+        ),
         const SizedBox(height: 16),
         Row(
           children: [
-            Expanded(child: _Acao(icone: CupertinoIcons.phone_fill, rotulo: 'Ligar', aoTocar: () {
-              Clipboard.setData(ClipboardData(text: a.responsavel.telefone));
-              avisar(context, 'Telefone copiado', icone: CupertinoIcons.phone_fill);
-            })),
+            Expanded(
+              child: _Acao(
+                icone: CupertinoIcons.phone_fill,
+                rotulo: 'Ligar',
+                aoTocar: () {
+                  Clipboard.setData(ClipboardData(text: a.responsavel.telefone));
+                  avisar(context, 'Telefone copiado', icone: CupertinoIcons.phone_fill);
+                },
+              ),
+            ),
             const SizedBox(width: 10),
-            Expanded(child: _Acao(icone: CupertinoIcons.paperplane_fill, rotulo: 'Convidar', aoTocar: () => abrirConvite(context, a))),
+            Expanded(
+              child: _Acao(icone: CupertinoIcons.paperplane_fill, rotulo: 'Convidar', aoTocar: () => abrirConvite(context, a)),
+            ),
             const SizedBox(width: 10),
-            Expanded(child: _Acao(icone: CupertinoIcons.money_dollar_circle_fill, rotulo: 'Cobrar', aoTocar: () {
-              final aberta = store.cobrancasDo(a.id).where((c) => c.status(hoje) != StatusCobranca.paga).firstOrNull;
-              if (aberta == null) {
-                avisar(context, 'Nada em aberto para ${a.primeiro} 🎉');
-              } else {
-                acoesCobranca(context, aberta);
-              }
-            })),
+            Expanded(
+              child: _Acao(
+                icone: CupertinoIcons.money_dollar_circle_fill,
+                rotulo: 'Cobrar',
+                aoTocar: () {
+                  final aberta = store.cobrancasDo(a.id).where((c) => c.status(hoje) != StatusCobranca.paga).firstOrNull;
+                  if (aberta == null) {
+                    avisar(context, 'Nada em aberto para ${a.primeiro} 🎉');
+                  } else {
+                    acoesCobranca(context, aberta);
+                  }
+                },
+              ),
+            ),
           ],
         ),
         if (a.cuidados.isNotEmpty)
@@ -291,18 +456,32 @@ class PassageiroTela extends StatelessWidget {
             padding: const EdgeInsets.only(top: 16),
             child: Cartao(
               cor: p.suave(p.vermelho),
-              child: Row(children: [
-                Icon(CupertinoIcons.heart_circle_fill, color: p.vermelho),
-                const SizedBox(width: 10),
-                Expanded(child: Text(a.cuidados, style: TextStyle(color: p.vermelho, fontWeight: FontWeight.w600))),
-              ]),
+              child: Row(
+                children: [
+                  Icon(CupertinoIcons.heart_circle_fill, color: p.vermelho),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      a.cuidados,
+                      style: TextStyle(color: p.vermelho, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         Secao(
           titulo: 'Responsável',
           filhos: [
-            Linha(inicio: IconeApp(CupertinoIcons.person_fill, cor: p.azul), titulo: a.responsavel.nome, subtitulo: a.responsavel.parentesco),
-            Linha(inicio: IconeApp(CupertinoIcons.phone_fill, cor: p.verde), titulo: a.responsavel.telefone),
+            Linha(
+              inicio: IconeApp(CupertinoIcons.person_fill, cor: p.azul),
+              titulo: a.responsavel.nome,
+              subtitulo: a.responsavel.parentesco,
+            ),
+            Linha(
+              inicio: IconeApp(CupertinoIcons.phone_fill, cor: p.verde),
+              titulo: a.responsavel.telefone,
+            ),
             Linha(
               inicio: IconeApp(
                 a.familiaConectada ? CupertinoIcons.checkmark_seal_fill : CupertinoIcons.paperplane_fill,
@@ -318,7 +497,11 @@ class PassageiroTela extends StatelessWidget {
         Secao(
           titulo: 'Transporte',
           filhos: [
-            Linha(inicio: IconeApp(CupertinoIcons.house_fill, cor: p.laranja), titulo: a.endereco, subtitulo: 'Embarque e desembarque'),
+            Linha(
+              inicio: IconeApp(CupertinoIcons.house_fill, cor: p.laranja),
+              titulo: a.endereco,
+              subtitulo: 'Embarque e desembarque',
+            ),
             Linha(
               inicio: const IconeApp(CupertinoIcons.book_fill, cor: Paleta.marinhoMarca),
               titulo: escola.nome,
@@ -365,11 +548,13 @@ class PassageiroTela extends StatelessWidget {
               seta: false,
               aoTocar: () async {
                 if (!a.ativo ||
-                    await confirmar(context,
-                        titulo: 'Pausar ${a.primeiro}?',
-                        mensagem: 'Sai das rotas e das próximas cobranças até ser reativado.',
-                        acao: 'Pausar',
-                        destrutiva: true)) {
+                    await confirmar(
+                      context,
+                      titulo: 'Pausar ${a.primeiro}?',
+                      mensagem: 'Sai das rotas e das próximas cobranças até ser reativado.',
+                      acao: 'Pausar',
+                      destrutiva: true,
+                    )) {
                   store.alternarAtivo(a);
                 }
               },
@@ -395,16 +580,22 @@ class _Acao extends StatelessWidget {
     return Cartao(
       aoTocar: aoTocar,
       padding: const EdgeInsets.symmetric(vertical: 12),
-      child: Column(children: [
-        Icon(icone, color: p.azul, size: 22),
-        const SizedBox(height: 4),
-        Text(rotulo, style: TextStyle(color: p.azul, fontSize: 12.5, fontWeight: FontWeight.w600)),
-      ]),
+      child: Column(
+        children: [
+          Icon(icone, color: p.azul, size: 22),
+          const SizedBox(height: 4),
+          Text(
+            rotulo,
+            style: TextStyle(color: p.azul, fontSize: 12.5, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 }
 
-/// Cadastro manual enxuto: só o essencial. O caminho preferido é a família pedir pelo código.
+/// Cadastro manual: nome, colégio (selecionar ou cadastrar), turno, endereço pelo CEP
+/// confirmado no mapa, responsável e mensalidade.
 class _NovoPassageiro extends StatefulWidget {
   const _NovoPassageiro();
 
@@ -414,127 +605,122 @@ class _NovoPassageiro extends StatefulWidget {
 
 class _NovoPassageiroState extends State<_NovoPassageiro> {
   final _nome = TextEditingController();
-  final _endereco = TextEditingController();
   final _responsavel = TextEditingController();
   final _telefone = TextEditingController();
   final _valor = TextEditingController(text: '320');
   final _cuidados = TextEditingController();
-  String _escolaId = 'e1';
+  String? _escolaId;
   Turno _turno = Turno.manha;
+  Endereco? _endereco;
+  bool _tentouSalvar = false;
 
   @override
   void dispose() {
-    for (final c in [_nome, _endereco, _responsavel, _telefone, _valor, _cuidados]) {
+    for (final c in [_nome, _responsavel, _telefone, _valor, _cuidados]) {
       c.dispose();
     }
     super.dispose();
   }
 
-  bool get _valido => [_nome, _endereco, _responsavel, _telefone].every((c) => c.text.trim().isNotEmpty);
+  bool get _valido =>
+      _nome.text.trim().isNotEmpty &&
+      _escolaId != null &&
+      _endereco != null &&
+      _responsavel.text.trim().isNotEmpty &&
+      _telefone.text.trim().isNotEmpty;
+
+  void _salvar() {
+    if (!_valido) {
+      setState(() => _tentouSalvar = true);
+      return;
+    }
+    final store = VanScope.read(context);
+    final rotas = store.adicionarAluno(
+      nome: _nome.text.trim(),
+      serie: '—',
+      escolaId: _escolaId!,
+      turno: _turno,
+      responsavel: Responsavel(nome: _responsavel.text.trim(), telefone: _telefone.text.trim(), parentesco: 'Responsável'),
+      endereco: _endereco!.resumo,
+      enderecoCompleto: _endereco,
+      valorMensal: double.tryParse(_valor.text.replaceAll(',', '.')) ?? 0,
+      diaVencimento: 10,
+      nascimento: DateTime(DateTime.now().year - 8),
+      cuidados: _cuidados.text.trim(),
+    );
+    // Contexto do navegador continua válido depois de fechar esta folha.
+    final nav = Navigator.of(context);
+    nav.pop();
+    avisar(nav.context, '${primeiroNome(_nome.text)} adicionado${rotas.isEmpty ? '' : ' às rotas da ${_turno.rotulo.toLowerCase()}'}');
+    // Fluxo direto: cadastrou → já convida a família.
+    abrirConvite(nav.context, store.alunos.last);
+  }
 
   @override
   Widget build(BuildContext context) {
     final store = VanScope.of(context);
     final p = context.cores;
-
-    Widget campo(TextEditingController c, String rotulo, IconData icone, {TextInputType? teclado}) => Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: TextField(
-            controller: c,
-            keyboardType: teclado,
-            textCapitalization: teclado == null ? TextCapitalization.words : TextCapitalization.none,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(hintText: rotulo, prefixIcon: Icon(icone, size: 20)),
-          ),
-        );
-
-    return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, 16 + MediaQuery.viewInsetsOf(context).bottom),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(children: [
-              CupertinoButton(padding: EdgeInsets.zero, onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
-              const Spacer(),
-              const Text('Novo passageiro', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700)),
-              const Spacer(),
-              CupertinoButton(
-                padding: EdgeInsets.zero,
-                onPressed: _valido
-                    ? () {
-                        final rotas = store.adicionarAluno(
-                          nome: _nome.text.trim(),
-                          serie: '—',
-                          escolaId: _escolaId,
-                          turno: _turno,
-                          responsavel: Responsavel(nome: _responsavel.text.trim(), telefone: _telefone.text.trim(), parentesco: 'Responsável'),
-                          endereco: _endereco.text.trim(),
-                          valorMensal: double.tryParse(_valor.text.replaceAll(',', '.')) ?? 0,
-                          diaVencimento: 10,
-                          nascimento: DateTime(DateTime.now().year - 8),
-                          cuidados: _cuidados.text.trim(),
-                        );
-                        // Contexto do navegador continua válido depois de fechar esta folha.
-                        final nav = Navigator.of(context);
-                        nav.pop();
-                        avisar(nav.context, '${primeiroNome(_nome.text)} adicionado${rotas.isEmpty ? '' : ' às rotas da ${_turno.rotulo.toLowerCase()}'}');
-                        // Fluxo direto: cadastrou → já convida a família.
-                        abrirConvite(nav.context, store.alunos.last);
-                      }
-                    : null,
-                child: const Text('Salvar', style: TextStyle(fontWeight: FontWeight.w700)),
-              ),
-            ]),
-            Cartao(
-              cor: p.suave(p.azul),
-              padding: const EdgeInsets.all(12),
-              child: Row(children: [
-                Icon(CupertinoIcons.lightbulb_fill, color: p.azul, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text('Depois de salvar, você já envia o convite para a família pelo WhatsApp.',
-                      style: TextStyle(color: p.azul, fontWeight: FontWeight.w500)),
-                ),
-              ]),
-            ),
-            const SizedBox(height: 14),
-            campo(_nome, 'Nome do aluno', CupertinoIcons.person_fill),
-            SizedBox(
-              width: double.infinity,
-              child: CupertinoSlidingSegmentedControl<String>(
-                groupValue: _escolaId,
-                backgroundColor: p.preenchimento,
-                thumbColor: p.escuro ? p.elevado : Colors.white,
-                onValueChanged: (v) => setState(() => _escolaId = v ?? _escolaId),
-                children: {
-                  for (final e in store.escolas)
-                    e.id: Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(e.nome, overflow: TextOverflow.ellipsis)),
-                },
-              ),
-            ),
-            const SizedBox(height: 10),
-            SizedBox(
-              width: double.infinity,
-              child: CupertinoSlidingSegmentedControl<Turno>(
-                groupValue: _turno,
-                backgroundColor: p.preenchimento,
-                thumbColor: p.escuro ? p.elevado : Colors.white,
-                onValueChanged: (v) => setState(() => _turno = v ?? _turno),
-                children: {
-                  for (final t in Turno.values) t: Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(t.rotulo)),
-                },
-              ),
-            ),
-            const SizedBox(height: 10),
-            campo(_endereco, 'Endereço de embarque', CupertinoIcons.house_fill),
-            campo(_responsavel, 'Nome do responsável', CupertinoIcons.person_2_fill),
-            campo(_telefone, 'WhatsApp', CupertinoIcons.phone_fill, teclado: TextInputType.phone),
-            campo(_valor, 'Mensalidade (R\$)', CupertinoIcons.money_dollar, teclado: const TextInputType.numberWithOptions(decimal: true)),
-            campo(_cuidados, 'Cuidados de saúde (opcional)', CupertinoIcons.heart_fill),
-          ],
+    final escola = _escolaId == null ? null : store.escola(_escolaId!);
+    return Formulario(
+      titulo: 'Novo passageiro',
+      rotuloSalvar: 'Salvar e convidar família',
+      podeSalvar: true,
+      aoSalvar: _salvar,
+      campos: [
+        CampoTexto(controle: _nome, rotulo: 'Nome do aluno', icone: Icons.person_rounded, aoMudar: () => setState(() {})),
+        CampoSelecao(
+          rotulo: 'Colégio',
+          valor: escola?.nome,
+          detalhe: escola == null ? null : '${escola.endereco} · ${horario(escola.entrada)}–${horario(escola.saida)}',
+          icone: Icons.school_rounded,
+          erro: _tentouSalvar && _escolaId == null ? 'Selecione ou cadastre o colégio' : null,
+          aoTocar: () async {
+            final e = await selecionarEscola(context, selecionadaId: _escolaId);
+            if (e != null) setState(() => _escolaId = e.id);
+          },
         ),
-      ),
+        Segmentos<Turno>(valor: _turno, opcoes: {for (final t in Turno.values) t: t.rotulo}, aoMudar: (v) => setState(() => _turno = v)),
+        const SizedBox(height: 10),
+        CartaoEndereco(
+          endereco: _endereco,
+          rotulo: 'Endereço de embarque',
+          aoTocar: () async {
+            final e = await escolherEndereco(
+              context,
+              inicial: _endereco,
+              titulo: 'Endereço de embarque',
+              ajuda: 'Use o CEP da casa e confirme no mapa: é ali que a van vai parar.',
+            );
+            if (e != null) setState(() => _endereco = e);
+          },
+        ),
+        if (_tentouSalvar && _endereco == null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Text('Informe o endereço pelo CEP e confirme no mapa', style: TextStyle(color: p.vermelho, fontSize: 12.5)),
+          ),
+        const SizedBox(height: 12),
+        CampoTexto(
+          controle: _responsavel,
+          rotulo: 'Nome do responsável',
+          icone: Icons.family_restroom_rounded,
+          aoMudar: () => setState(() {}),
+        ),
+        CampoTexto(
+          controle: _telefone,
+          rotulo: 'WhatsApp',
+          icone: Icons.phone_rounded,
+          teclado: TextInputType.phone,
+          aoMudar: () => setState(() {}),
+        ),
+        CampoTexto(
+          controle: _valor,
+          rotulo: 'Mensalidade (R\$)',
+          icone: Icons.payments_rounded,
+          teclado: const TextInputType.numberWithOptions(decimal: true),
+        ),
+        CampoTexto(controle: _cuidados, rotulo: 'Cuidados de saúde (opcional)', icone: Icons.favorite_rounded),
+      ],
     );
   }
 }
@@ -550,16 +736,16 @@ class _EditarAluno extends StatefulWidget {
 
 class _EditarAlunoState extends State<_EditarAluno> {
   late final _nome = TextEditingController(text: widget.aluno.nome);
-  late final _endereco = TextEditingController(text: widget.aluno.endereco);
   late final _valor = TextEditingController(text: widget.aluno.valorMensal.toStringAsFixed(0));
   late final _cuidados = TextEditingController(text: widget.aluno.cuidados);
   late String _escolaId = widget.aluno.escolaId;
   late Turno _turno = widget.aluno.turno;
   late int _vencimento = widget.aluno.diaVencimento;
+  late Endereco? _endereco = widget.aluno.enderecoCompleto;
 
   @override
   void dispose() {
-    for (final c in [_nome, _endereco, _valor, _cuidados]) {
+    for (final c in [_nome, _valor, _cuidados]) {
       c.dispose();
     }
     super.dispose();
@@ -569,6 +755,7 @@ class _EditarAlunoState extends State<_EditarAluno> {
   Widget build(BuildContext context) {
     final store = VanScope.read(context);
     final p = context.cores;
+    final escola = store.escola(_escolaId);
     return Formulario(
       titulo: 'Editar aluno',
       podeSalvar: _nome.text.trim().isNotEmpty,
@@ -576,51 +763,66 @@ class _EditarAlunoState extends State<_EditarAluno> {
         store.atualizarAluno(
           widget.aluno,
           nome: _nome.text.trim(),
-          endereco: _endereco.text.trim(),
           escolaId: _escolaId,
           turno: _turno,
           valorMensal: double.tryParse(_valor.text.replaceAll(',', '.')),
           diaVencimento: _vencimento,
           cuidados: _cuidados.text.trim(),
+          enderecoCompleto: _endereco != widget.aluno.enderecoCompleto ? _endereco : null,
         );
         Navigator.pop(context);
         avisar(context, 'Dados atualizados (rotas ajustadas)');
       },
       campos: [
-        CampoTexto(controle: _nome, rotulo: 'Nome', icone: CupertinoIcons.person_fill, aoMudar: () => setState(() {})),
-        CampoTexto(controle: _endereco, rotulo: 'Endereço de embarque', icone: CupertinoIcons.house_fill),
-        Segmentos<String>(
-          valor: _escolaId,
-          opcoes: {for (final e in store.escolas) e.id: e.nome},
-          aoMudar: (v) => setState(() => _escolaId = v),
+        CampoTexto(controle: _nome, rotulo: 'Nome', icone: Icons.person_rounded, aoMudar: () => setState(() {})),
+        CampoSelecao(
+          rotulo: 'Colégio',
+          valor: escola.nome,
+          detalhe: escola.endereco,
+          icone: Icons.school_rounded,
+          aoTocar: () async {
+            final e = await selecionarEscola(context, selecionadaId: _escolaId);
+            if (e != null) setState(() => _escolaId = e.id);
+          },
         ),
+        Segmentos<Turno>(valor: _turno, opcoes: {for (final t in Turno.values) t: t.rotulo}, aoMudar: (v) => setState(() => _turno = v)),
         const SizedBox(height: 10),
-        Segmentos<Turno>(
-          valor: _turno,
-          opcoes: {for (final t in Turno.values) t: t.rotulo},
-          aoMudar: (v) => setState(() => _turno = v),
+        CartaoEndereco(
+          endereco: _endereco,
+          rotulo: _endereco == null ? 'Endereço atual: ${widget.aluno.endereco} (confirmar pelo CEP)' : 'Endereço de embarque',
+          aoTocar: () async {
+            final e = await escolherEndereco(context, inicial: _endereco, titulo: 'Endereço de embarque');
+            if (e != null) setState(() => _endereco = e);
+          },
         ),
         const SizedBox(height: 10),
         CampoTexto(
           controle: _valor,
           rotulo: 'Mensalidade (R\$)',
-          icone: CupertinoIcons.money_dollar,
+          icone: Icons.payments_rounded,
           teclado: const TextInputType.numberWithOptions(decimal: true),
         ),
-        Secao(filhos: [
-          Linha(
-            inicio: IconeApp(CupertinoIcons.calendar, cor: p.azul),
-            titulo: 'Vencimento',
-            fim: Text('Dia $_vencimento', style: TextStyle(color: p.textoSuave)),
-            aoTocar: () async {
-              final d = await escolherAcao<int>(context,
-                  titulo: 'Dia do vencimento', opcoes: [for (final d in [5, 10, 15, 20, 25]) OpcaoAcao('Dia $d', d)]);
-              if (d != null) setState(() => _vencimento = d);
-            },
-          ),
-        ]),
+        Secao(
+          filhos: [
+            Linha(
+              inicio: IconeApp(Icons.event_rounded, cor: p.azul),
+              titulo: 'Vencimento',
+              fim: Text('Dia $_vencimento', style: TextStyle(color: p.textoSuave)),
+              aoTocar: () async {
+                final d = await escolherAcao<int>(
+                  context,
+                  titulo: 'Dia do vencimento',
+                  opcoes: [
+                    for (final d in [5, 10, 15, 20, 25]) OpcaoAcao('Dia $d', d),
+                  ],
+                );
+                if (d != null) setState(() => _vencimento = d);
+              },
+            ),
+          ],
+        ),
         const SizedBox(height: 10),
-        CampoTexto(controle: _cuidados, rotulo: 'Cuidados de saúde (opcional)', icone: CupertinoIcons.heart_fill),
+        CampoTexto(controle: _cuidados, rotulo: 'Cuidados de saúde (opcional)', icone: Icons.favorite_rounded),
       ],
     );
   }

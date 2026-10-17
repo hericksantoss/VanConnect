@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app/tema.dart';
 import 'estado/van_store.dart';
+import 'servicos/sessao_salva.dart';
 import 'telas/entrada/boas_vindas.dart';
 import 'telas/motorista/shell_motorista.dart';
 import 'telas/responsavel/shell_responsavel.dart';
@@ -13,7 +14,12 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   await Tutoriais.iniciar();
-  runApp(VanConnectApp(store: VanStore()));
+  await SessaoSalva.iniciar();
+  final store = VanStore();
+  // Quem já entrou continua logado ao reabrir o app.
+  SessaoSalva.restaurar(store);
+  store.aoMudarSessao = () => SessaoSalva.salvar(store);
+  runApp(VanConnectApp(store: store));
 }
 
 class VanConnectApp extends StatelessWidget {

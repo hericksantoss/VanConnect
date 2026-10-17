@@ -35,7 +35,10 @@ class SecaoAparencia extends StatelessWidget {
                         children: [
                           _Miniatura(claro: claro, selecionado: modo == m),
                           const SizedBox(height: 8),
-                          Text(rotulo, style: TextStyle(fontSize: 14, color: p.texto, fontWeight: FontWeight.w500)),
+                          Text(
+                            rotulo,
+                            style: TextStyle(fontSize: 14, color: p.texto, fontWeight: FontWeight.w500),
+                          ),
                           const SizedBox(height: 6),
                           AnimatedContainer(
                             duration: const Duration(milliseconds: 200),
@@ -72,23 +75,36 @@ class _Miniatura extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = context.cores;
     Widget tela(Paleta t) => ColoredBox(
-          color: t.fundo,
-          child: Padding(
-            padding: const EdgeInsets.all(6),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(height: 6, width: 26, decoration: BoxDecoration(color: t.texto, borderRadius: BorderRadius.circular(3))),
-                const SizedBox(height: 6),
-                Container(height: 18, decoration: BoxDecoration(color: t.cartao, borderRadius: BorderRadius.circular(4))),
-                const SizedBox(height: 4),
-                Container(height: 18, decoration: BoxDecoration(color: t.cartao, borderRadius: BorderRadius.circular(4))),
-                const Spacer(),
-                Container(height: 8, decoration: BoxDecoration(color: t.azul, borderRadius: BorderRadius.circular(3))),
-              ],
+      color: t.fundo,
+      child: Padding(
+        padding: const EdgeInsets.all(6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 6,
+              width: 26,
+              decoration: BoxDecoration(color: t.texto, borderRadius: BorderRadius.circular(3)),
             ),
-          ),
-        );
+            const SizedBox(height: 6),
+            Container(
+              height: 18,
+              decoration: BoxDecoration(color: t.cartao, borderRadius: BorderRadius.circular(4)),
+            ),
+            const SizedBox(height: 4),
+            Container(
+              height: 18,
+              decoration: BoxDecoration(color: t.cartao, borderRadius: BorderRadius.circular(4)),
+            ),
+            const Spacer(),
+            Container(
+              height: 8,
+              decoration: BoxDecoration(color: t.azul, borderRadius: BorderRadius.circular(3)),
+            ),
+          ],
+        ),
+      ),
+    );
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
@@ -104,10 +120,20 @@ class _Miniatura extends StatelessWidget {
         child: switch (claro) {
           true => tela(Paleta.claro),
           false => tela(Paleta.noturno),
-          null => Row(children: [
-              Expanded(child: ClipRect(child: OverflowBox(alignment: Alignment.centerLeft, maxWidth: 59, child: tela(Paleta.claro)))),
-              Expanded(child: ClipRect(child: OverflowBox(alignment: Alignment.centerRight, maxWidth: 59, child: tela(Paleta.noturno)))),
-            ]),
+          null => Row(
+            children: [
+              Expanded(
+                child: ClipRect(
+                  child: OverflowBox(alignment: Alignment.centerLeft, maxWidth: 59, child: tela(Paleta.claro)),
+                ),
+              ),
+              Expanded(
+                child: ClipRect(
+                  child: OverflowBox(alignment: Alignment.centerRight, maxWidth: 59, child: tela(Paleta.noturno)),
+                ),
+              ),
+            ],
+          ),
         },
       ),
     );

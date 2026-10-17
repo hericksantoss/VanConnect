@@ -6,7 +6,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../app/geo.dart';
 import '../app/tema.dart';
+
+export '../app/geo.dart';
 
 enum TipoMarcador { garagem, casa, escola, destaque }
 
@@ -20,14 +23,16 @@ class MarcadorMapa {
   final String? rotulo;
 }
 
-/// Área de atendimento da demonstração (região central de São Paulo).
-/// Os dados guardam posições normalizadas; aqui viram coordenadas reais.
-const _norte = -23.548;
-const _oeste = -46.672;
-const _alturaGraus = 0.036;
-const _larguraGraus = 0.048;
-
-LatLng paraLatLng(Offset n) => LatLng(_norte - n.dy * _alturaGraus, _oeste + n.dx * _larguraGraus);
+/// Camada de imagens do mapa (OpenStreetMap) com o filtro do tema.
+TileLayer criarCamadaImagens(BuildContext context, bool escuro) => TileLayer(
+  // Imagens do OpenStreetMap (sem chave). Em produção, use um provedor com chave
+  // (MapTiler, Stadia, Mapbox) ou google_maps_flutter — veja o README.
+  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  userAgentPackageName: 'app.vanconnect.van_connect',
+  maxNativeZoom: 19,
+  // Filtro de cor: mapa cinza-claro e minimalista (ou escuro), combinando com o app.
+  tileBuilder: (context, tile, _) => ColorFiltered(colorFilter: escuro ? _matrizEscura : _matrizClara, child: tile),
+);
 
 /// Ponto da van no percurso: [p] é fracionário no espaço de índices de [pts].
 /// Entre duas paradas segue o desenho "em L" (como quarteirões).
@@ -75,12 +80,12 @@ ColorFilter _matriz({required double s, required double k, required List<double>
   final sinal = inverter ? -1.0 : 1.0;
   final base = inverter ? 255.0 * k : 0.0;
   List<double> linha(int canal) => [
-        sinal * k * (r * (1 - s) + (canal == 0 ? s : 0)),
-        sinal * k * (g * (1 - s) + (canal == 1 ? s : 0)),
-        sinal * k * (bl * (1 - s) + (canal == 2 ? s : 0)),
-        0,
-        base + b[canal],
-      ];
+    sinal * k * (r * (1 - s) + (canal == 0 ? s : 0)),
+    sinal * k * (g * (1 - s) + (canal == 1 ? s : 0)),
+    sinal * k * (bl * (1 - s) + (canal == 2 ? s : 0)),
+    0,
+    base + b[canal],
+  ];
   return ColorFilter.matrix([...linha(0), ...linha(1), ...linha(2), 0, 0, 0, 1, 0]);
 }
 
@@ -152,11 +157,7 @@ class _MapaTrajetoState extends State<MapaTrajeto> with SingleTickerProviderStat
   CameraFit get _enquadramento {
     final todos = [...widget.pontos, ...widget.marcadores.map((m) => m.posicao)];
     if (todos.isEmpty) todos.add(const Offset(0.5, 0.5));
-    return CameraFit.coordinates(
-      coordinates: todos.map(paraLatLng).toList(),
-      padding: widget.margem,
-      maxZoom: 16,
-    );
+    return CameraFit.coordinates(coordinates: todos.map(paraLatLng).toList(), padding: widget.margem, maxZoom: 16);
   }
 
   TileLayer? _imagens;
@@ -166,53 +167,47 @@ class _MapaTrajetoState extends State<MapaTrajeto> with SingleTickerProviderStat
   TileLayer _camadaImagens(BuildContext context, bool escuro) {
     if (_imagens == null || _imagensEscuras != escuro) {
       _imagensEscuras = escuro;
-      _imagens = TileLayer(
-        // Imagens do OpenStreetMap (sem chave). Em produção, use um provedor com chave
-        // (MapTiler, Stadia, Mapbox) ou google_maps_flutter — veja o README.
-        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-        userAgentPackageName: 'app.vanconnect.van_connect',
-        maxNativeZoom: 19,
-        // Filtro de cor: mapa cinza-claro e minimalista (ou escuro), combinando com o app.
-        tileBuilder: (context, tile, _) => escuro
-            ? ColorFiltered(
-                colorFilter: _matrizEscura,
-                child: tile,
-              )
-            : ColorFiltered(colorFilter: _matrizClara, child: tile),
-      );
+      _imagens = criarCamadaImagens(context, escuro);
     }
     return _imagens!;
   }
 
   Widget _rota(Paleta p, double? prog) => widget.pontos.length < 2
       ? const SizedBox.shrink()
-      : PolylineLayer(polylines: [
+      : PolylineLayer(
+          polylines: [
             Polyline(points: _caminho(widget.pontos), strokeWidth: 6, color: p.azul.withValues(alpha: 0.28)),
-            if (prog != null && prog > 0) Polyline(points: _caminho(widget.pontos, ate: prog), strokeWidth: 6, color: p.azul),
-          ]);
-
-  Widget _marcadores(double? prog) => MarkerLayer(
-          markers: [
-            for (final m in widget.marcadores)
-              Marker(
-                point: paraLatLng(m.posicao),
-                width: m.rotulo == null ? 40 : 70,
-                height: m.tipo == TipoMarcador.destaque ? 64 : 40,
-                alignment: m.tipo == TipoMarcador.destaque ? Alignment.topCenter : Alignment.center,
-                child: _Pino(m),
-              ),
-            if (prog != null && widget.pontos.isNotEmpty)
-              Marker(
-                point: paraLatLng(posicaoNoPercurso(widget.pontos, prog)),
-                width: 80,
-                height: 80,
-                child: AnimatedBuilder(
-                  animation: _pulso,
-                  builder: (_, _) => _Van(pulso: widget.transmitindo ? _pulso.value : null),
-                ),
+            if (prog != null && prog > 0)
+              Polyline(
+                points: _caminho(widget.pontos, ate: prog),
+                strokeWidth: 6,
+                color: p.azul,
               ),
           ],
         );
+
+  Widget _marcadores(double? prog) => MarkerLayer(
+    markers: [
+      for (final m in widget.marcadores)
+        Marker(
+          point: paraLatLng(m.posicao),
+          width: m.rotulo == null ? 40 : 70,
+          height: m.tipo == TipoMarcador.destaque ? 64 : 40,
+          alignment: m.tipo == TipoMarcador.destaque ? Alignment.topCenter : Alignment.center,
+          child: _Pino(m),
+        ),
+      if (prog != null && widget.pontos.isNotEmpty)
+        Marker(
+          point: paraLatLng(posicaoNoPercurso(widget.pontos, prog)),
+          width: 80,
+          height: 80,
+          child: AnimatedBuilder(
+            animation: _pulso,
+            builder: (_, _) => _Van(pulso: widget.transmitindo ? _pulso.value : null),
+          ),
+        ),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -241,8 +236,7 @@ class _MapaTrajetoState extends State<MapaTrajeto> with SingleTickerProviderStat
           alignment: Alignment.bottomLeft,
           child: Padding(
             padding: EdgeInsets.only(left: 8, bottom: widget.margem.bottom > 60 ? widget.margem.bottom - 30 : 4),
-            child: Text('© OpenStreetMap contributors',
-                style: TextStyle(fontSize: 9, color: p.textoSuave.withValues(alpha: 0.8))),
+            child: Text('© OpenStreetMap contributors', style: TextStyle(fontSize: 9, color: p.textoSuave.withValues(alpha: 0.8))),
           ),
         ),
       ],
@@ -268,7 +262,11 @@ class _Pino extends StatelessWidget {
           child: Container(
             width: 12,
             height: 12,
-            decoration: BoxDecoration(color: p.cinza, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2.5)),
+            decoration: BoxDecoration(
+              color: p.cinza,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2.5),
+            ),
           ),
         );
       case TipoMarcador.casa:
@@ -282,8 +280,11 @@ class _Pino extends StatelessWidget {
               border: Border.all(color: m.concluido ? p.verde : p.azul, width: 2.5),
               boxShadow: sombra,
             ),
-            child: Icon(m.concluido ? CupertinoIcons.checkmark_alt : CupertinoIcons.house_fill,
-                size: 14, color: m.concluido ? Colors.white : p.azul),
+            child: Icon(
+              m.concluido ? CupertinoIcons.checkmark_alt : CupertinoIcons.house_fill,
+              size: 14,
+              color: m.concluido ? Colors.white : p.azul,
+            ),
           ),
         );
       case TipoMarcador.escola:
@@ -307,7 +308,10 @@ class _Pino extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(color: p.cartao, borderRadius: BorderRadius.circular(8), boxShadow: sombra),
-                child: Text(m.rotulo!, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: p.texto)),
+                child: Text(
+                  m.rotulo!,
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: p.texto),
+                ),
               ),
             const SizedBox(height: 3),
             Container(
@@ -343,7 +347,10 @@ class _Van extends StatelessWidget {
           Container(
             width: 36 + 40 * pul,
             height: 36 + 40 * pul,
-            decoration: BoxDecoration(shape: BoxShape.circle, color: p.azul.withValues(alpha: 0.35 * (1 - pul))),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: p.azul.withValues(alpha: 0.35 * (1 - pul)),
+            ),
           ),
         Container(
           width: 40,

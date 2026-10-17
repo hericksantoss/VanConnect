@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import '../../app/tema.dart';
 import '../../componentes/ui.dart';
 import '../../estado/van_store.dart';
-import 'entrar_responsavel.dart';
+import 'entrar_conta.dart';
 
 class BoasVindas extends StatelessWidget {
   const BoasVindas({super.key});
@@ -51,18 +51,27 @@ class BoasVindas extends StatelessWidget {
                       icone: CupertinoIcons.bus,
                       cor: p.azul,
                       titulo: 'Sou motorista',
-                      texto: 'Rotas, chamada e financeiro',
-                      aoTocar: () => store.escolherPerfil(Perfil.motorista),
+                      texto: 'Cadastre-se com seus dados e a van',
+                      aoTocar: () => abrir(context, const EntrarContaTela(perfil: Perfil.motorista)),
                     ),
                     const SizedBox(height: 10),
                     _Opcao(
                       icone: CupertinoIcons.person_2_fill,
                       cor: p.azul,
                       titulo: 'Sou responsável',
-                      texto: 'Acompanhe a van em tempo real',
-                      aoTocar: () => abrir(context, const EntrarResponsavelTela()),
+                      texto: 'Crie a conta e use o código da van',
+                      aoTocar: () => abrir(context, const EntrarContaTela(perfil: Perfil.responsavel)),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      children: [
+                        Text('Ver demonstração:', style: TextStyle(color: p.textoSuave, fontSize: 13.5)),
+                        TextButton(onPressed: store.entrarDemonstracaoMotorista, child: const Text('Motorista')),
+                        TextButton(onPressed: store.entrarDemonstracaoResponsavel, child: const Text('Família')),
+                      ],
+                    ),
                     Center(
                       child: Text('Protótipo · dados fictícios', style: TextStyle(color: p.textoSuave, fontSize: 12.5)),
                     ),

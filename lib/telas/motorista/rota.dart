@@ -7,13 +7,14 @@ import '../../componentes/mapa.dart';
 import '../../componentes/ui.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/van_store.dart';
+import '../comum/escolas.dart';
 import 'shell_motorista.dart';
 
 List<MarcadorMapa> marcadoresDaRota(VanStore store, Trajeto t) => [
-      MarcadorMapa(t.garagem, TipoMarcador.garagem),
-      for (final a in store.alunosDo(t)) MarcadorMapa(a.posicao, TipoMarcador.casa),
-      for (final id in t.escolaIds) MarcadorMapa(store.escola(id).posicao, TipoMarcador.escola),
-    ];
+  MarcadorMapa(t.garagem, TipoMarcador.garagem),
+  for (final a in store.alunosDo(t)) MarcadorMapa(a.posicao, TipoMarcador.casa),
+  for (final id in t.escolaIds) MarcadorMapa(store.escola(id).posicao, TipoMarcador.escola),
+];
 
 /// Editor de rota: horário, van, escolas, quem vai e a ordem das paradas.
 class RotaTela extends StatelessWidget {
@@ -37,8 +38,11 @@ class RotaTela extends StatelessWidget {
           ? null
           : SafeArea(
               minimum: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: Botao('Iniciar esta viagem', icone: CupertinoIcons.play_fill,
-                  aoTocar: () => iniciarViagemComCuidado(context, trajeto, fecharTelaAtual: true)),
+              child: Botao(
+                'Iniciar esta viagem',
+                icone: CupertinoIcons.play_fill,
+                aoTocar: () => iniciarViagemComCuidado(context, trajeto, fecharTelaAtual: true),
+              ),
             ),
       filhos: [
         MapaTrajeto(
@@ -69,9 +73,11 @@ class RotaTela extends StatelessWidget {
               aoTocar: store.veiculos.length < 2
                   ? null
                   : () async {
-                      final id = await escolherAcao<String>(context,
-                          titulo: 'Van desta rota',
-                          opcoes: [for (final v in store.veiculos) OpcaoAcao('${v.apelido} · ${v.placa}', v.id)]);
+                      final id = await escolherAcao<String>(
+                        context,
+                        titulo: 'Van desta rota',
+                        opcoes: [for (final v in store.veiculos) OpcaoAcao('${v.apelido} · ${v.placa}', v.id)],
+                      );
                       if (id != null) store.definirVeiculoDoTrajeto(trajeto, store.veiculos.firstWhere((v) => v.id == id));
                     },
             ),
@@ -97,6 +103,16 @@ class RotaTela extends StatelessWidget {
                 seta: false,
                 aoTocar: () => store.alternarEscolaNoTrajeto(trajeto, e.id),
               ),
+            Linha(
+              inicio: IconeApp(Icons.add_rounded, cor: p.azul),
+              titulo: 'Adicionar colégio',
+              subtitulo: 'Escolha da lista ou cadastre um novo',
+              corTitulo: p.azul,
+              aoTocar: () async {
+                final e = await selecionarEscola(context);
+                if (e != null && !trajeto.escolaIds.contains(e.id)) store.alternarEscolaNoTrajeto(trajeto, e.id);
+              },
+            ),
           ],
         ),
         Secao(
@@ -104,7 +120,10 @@ class RotaTela extends StatelessWidget {
           rodape: 'Segure e arraste para mudar a ordem.',
           filhos: [
             if (trajeto.alunoIds.isEmpty)
-              Linha(inicio: IconeApp(CupertinoIcons.person, cor: p.cinza), titulo: 'Nenhum aluno nesta rota')
+              Linha(
+                inicio: IconeApp(CupertinoIcons.person, cor: p.cinza),
+                titulo: 'Nenhum aluno nesta rota',
+              )
             else
               ReorderableListView.builder(
                 shrinkWrap: true,
@@ -124,7 +143,10 @@ class RotaTela extends StatelessWidget {
                         height: 30,
                         alignment: Alignment.center,
                         decoration: BoxDecoration(color: p.suave(p.azul), shape: BoxShape.circle),
-                        child: Text('${i + 1}', style: TextStyle(color: p.azul, fontWeight: FontWeight.w700)),
+                        child: Text(
+                          '${i + 1}',
+                          style: TextStyle(color: p.azul, fontWeight: FontWeight.w700),
+                        ),
                       ),
                       titulo: a.nome,
                       subtitulo: a.ativo ? a.endereco : 'Pausado',
@@ -148,8 +170,12 @@ class RotaTela extends StatelessWidget {
               seta: false,
               aoTocar: () {
                 final economia = store.otimizarOrdem(trajeto);
-                avisar(context, economia > 0.05 ? '${economia.toStringAsFixed(1)} km a menos por viagem' : 'Já está no menor caminho',
-                    icone: CupertinoIcons.wand_stars, cor: p.azul);
+                avisar(
+                  context,
+                  economia > 0.05 ? '${economia.toStringAsFixed(1)} km a menos por viagem' : 'Já está no menor caminho',
+                  icone: CupertinoIcons.wand_stars,
+                  cor: p.azul,
+                );
               },
             ),
           ],
@@ -161,11 +187,13 @@ class RotaTela extends StatelessWidget {
               corTitulo: p.vermelho,
               seta: false,
               aoTocar: () async {
-                if (await confirmar(context,
-                    titulo: 'Excluir ${trajeto.nome}?',
-                    mensagem: 'Os alunos continuam cadastrados.',
-                    acao: 'Excluir',
-                    destrutiva: true)) {
+                if (await confirmar(
+                  context,
+                  titulo: 'Excluir ${trajeto.nome}?',
+                  mensagem: 'Os alunos continuam cadastrados.',
+                  acao: 'Excluir',
+                  destrutiva: true,
+                )) {
                   store.removerTrajeto(trajeto);
                   if (context.mounted) Navigator.pop(context);
                 }
@@ -221,10 +249,12 @@ class _SecaoHoje extends StatelessWidget {
             corTitulo: p.azul,
             seta: false,
             aoTocar: () async {
-              if (await confirmar(context,
-                  titulo: 'Salvar como padrão?',
-                  mensagem: 'A rota de todos os dias passa a ser igual à de hoje.',
-                  acao: 'Salvar')) {
+              if (await confirmar(
+                context,
+                titulo: 'Salvar como padrão?',
+                mensagem: 'A rota de todos os dias passa a ser igual à de hoje.',
+                acao: 'Salvar',
+              )) {
                 store.salvarDiaComoPadrao(trajeto);
                 if (context.mounted) avisar(context, 'Rota padrão atualizada');
               }
@@ -270,17 +300,23 @@ class _QuemVai extends StatelessWidget {
         controller: controle,
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
-          Row(children: [
-            Expanded(
-              child: Text(soHoje ? 'Quem vai hoje' : 'Rota padrão',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
-            ),
-            CupertinoButton(padding: EdgeInsets.zero, onPressed: () => Navigator.pop(context), child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w700))),
-          ]),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  soHoje ? 'Quem vai hoje' : 'Rota padrão',
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5),
+                ),
+              ),
+              CupertinoButton(
+                padding: EdgeInsets.zero,
+                onPressed: () => Navigator.pop(context),
+                child: const Text('OK', style: TextStyle(fontWeight: FontWeight.w700)),
+              ),
+            ],
+          ),
           Text(
-            soHoje
-                ? '${hojeIds.length} selecionado(s) · vale só para hoje'
-                : '${trajeto.alunoIds.length} selecionado(s) · todos os dias',
+            soHoje ? '${hojeIds.length} selecionado(s) · vale só para hoje' : '${trajeto.alunoIds.length} selecionado(s) · todos os dias',
             style: TextStyle(color: p.textoSuave),
           ),
           Secao(
@@ -290,14 +326,20 @@ class _QuemVai extends StatelessWidget {
                   inicio: Avatar(a.nome, tamanho: 34),
                   titulo: a.nome,
                   subtitulo: '${store.escola(a.escolaId).nome} · ${a.turno.rotulo}',
-                  fim: Row(mainAxisSize: MainAxisSize.min, children: [
-                    if (soHoje && trajeto.alunoIds.contains(a.id) != hojeIds.contains(a.id))
-                      Padding(padding: const EdgeInsets.only(right: 6), child: Selo('só hoje', cor: p.azul)),
-                    Icon(
-                      (soHoje ? hojeIds : trajeto.alunoIds).contains(a.id) ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.circle,
-                      color: (soHoje ? hojeIds : trajeto.alunoIds).contains(a.id) ? p.azul : p.cinza,
-                    ),
-                  ]),
+                  fim: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (soHoje && trajeto.alunoIds.contains(a.id) != hojeIds.contains(a.id))
+                        Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: Selo('só hoje', cor: p.azul),
+                        ),
+                      Icon(
+                        (soHoje ? hojeIds : trajeto.alunoIds).contains(a.id) ? CupertinoIcons.checkmark_circle_fill : CupertinoIcons.circle,
+                        color: (soHoje ? hojeIds : trajeto.alunoIds).contains(a.id) ? p.azul : p.cinza,
+                      ),
+                    ],
+                  ),
                   seta: false,
                   aoTocar: () => soHoje ? store.alternarAlunoHoje(trajeto, a.id) : store.alternarAlunoNoTrajeto(trajeto, a.id),
                 ),

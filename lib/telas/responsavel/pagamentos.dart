@@ -39,15 +39,27 @@ class PagamentosTela extends StatelessWidget {
               ),
               if (abertas.isNotEmpty) ...[
                 const SizedBox(height: 14),
-                Botao(
-                  'Copiar chave Pix',
-                  estilo: EstiloBotao.claro,
-                  icone: CupertinoIcons.doc_on_doc_fill,
-                  aoTocar: () {
-                    Clipboard.setData(const ClipboardData(text: 'pix-demonstracao@vanconnect.app'));
-                    avisar(context, 'Chave Pix copiada (demonstração)', icone: CupertinoIcons.doc_on_doc_fill);
-                  },
-                ),
+                if (store.chavePix == null)
+                  Text(
+                    'O motorista ainda não cadastrou a chave Pix. Combine o pagamento com ele.',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
+                  )
+                else ...[
+                  Text(
+                    'Pix de ${store.chavePix!.titular} · ${store.chavePix!.tipo.rotulo}: ${store.chavePix!.valor}',
+                    style: TextStyle(color: Colors.white.withValues(alpha: 0.85)),
+                  ),
+                  const SizedBox(height: 10),
+                  Botao(
+                    'Copiar chave Pix',
+                    estilo: EstiloBotao.claro,
+                    icone: CupertinoIcons.doc_on_doc_fill,
+                    aoTocar: () {
+                      Clipboard.setData(ClipboardData(text: store.chavePix!.valor));
+                      avisar(context, 'Chave Pix copiada', icone: CupertinoIcons.doc_on_doc_fill);
+                    },
+                  ),
+                ],
               ],
             ],
           ),

@@ -10,6 +10,7 @@ import '../../componentes/mapa.dart';
 import '../../componentes/ui.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/van_store.dart';
+import '../comum/avisos.dart';
 import 'ausencias.dart';
 
 /// Home do responsável: o mapa ocupa a tela toda e as informações flutuam por cima.
@@ -119,6 +120,9 @@ class _MapaPrincipalTelaState extends State<MapaPrincipalTela> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 10),
+                  // Aviso mais recente aparece logo ao entrar, por cima do mapa.
+                  const BannerAviso(motorista: false, flutuante: true),
                   if (store.localizacaoAtrasada && naViagem != null) ...[
                     const SizedBox(height: 10),
                     _Vidro(

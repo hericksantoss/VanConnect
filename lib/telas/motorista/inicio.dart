@@ -6,6 +6,7 @@ import '../../app/tema.dart';
 import '../../componentes/ui.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/van_store.dart';
+import '../comum/avisos.dart';
 import 'gestao.dart';
 import 'rota.dart';
 import 'shell_motorista.dart';
@@ -56,11 +57,14 @@ class InicioTela extends StatelessWidget {
 
     return PaginaIOS(
       titulo: '${saudacao(agora)}, ${primeiroNome(store.nomeMotorista)}',
+      acao: const SinoAvisos(motorista: true),
       filhos: [
         Padding(
           padding: const EdgeInsets.only(left: 2, bottom: 14),
           child: Text(capitalizar(dataExtenso(agora)), style: TextStyle(color: p.textoSuave, fontSize: 15)),
         ),
+        // Aviso mais recente aparece logo ao entrar.
+        const BannerAviso(motorista: true),
         _ProximaViagem(store: store),
         if (pendencias.isNotEmpty) Secao(titulo: 'Para hoje', filhos: pendencias),
         Secao(
@@ -101,11 +105,15 @@ class _ProximaViagem extends StatelessWidget {
 
     if (t == null) {
       return Cartao(
-        child: Row(children: [
-          IconeApp(CupertinoIcons.moon_fill, cor: p.roxo, tamanho: 44),
-          const SizedBox(width: 14),
-          const Expanded(child: Text('Viagens de hoje concluídas.\nBom descanso!', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600))),
-        ]),
+        child: Row(
+          children: [
+            IconeApp(CupertinoIcons.moon_fill, cor: p.roxo, tamanho: 44),
+            const SizedBox(width: 14),
+            const Expanded(
+              child: Text('Viagens de hoje concluídas.\nBom descanso!', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
       );
     }
 
@@ -126,14 +134,22 @@ class _ProximaViagem extends StatelessWidget {
           Row(
             children: [
               if (emAndamento) ...[const PontoAoVivo(cor: branco), const SizedBox(width: 8)],
-              Text(emAndamento ? 'EM ANDAMENTO' : 'PRÓXIMA VIAGEM',
-                  style: TextStyle(color: branco.withValues(alpha: 0.85), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1)),
+              Text(
+                emAndamento ? 'EM ANDAMENTO' : 'PRÓXIMA VIAGEM',
+                style: TextStyle(color: branco.withValues(alpha: 0.85), fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1),
+              ),
               const Spacer(),
-              Text(horario(t.saida), style: const TextStyle(color: branco, fontSize: 22, fontWeight: FontWeight.w800)),
+              Text(
+                horario(t.saida),
+                style: const TextStyle(color: branco, fontSize: 22, fontWeight: FontWeight.w800),
+              ),
             ],
           ),
           const SizedBox(height: 8),
-          Text(t.nome, style: const TextStyle(color: branco, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -1)),
+          Text(
+            t.nome,
+            style: const TextStyle(color: branco, fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -1),
+          ),
           Text(
             '${store.escola(t.escolaIds.first).nome} · ${alunos.length - ausentes} alunos${ausentes > 0 ? ' · $ausentes ausente(s)' : ''}',
             style: TextStyle(color: branco.withValues(alpha: 0.8), fontSize: 15),

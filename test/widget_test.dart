@@ -1,10 +1,21 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:van_connect/dominio/modelos.dart';
 import 'package:van_connect/estado/van_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:van_connect/app/validacoes.dart';
+import 'package:van_connect/componentes/mascaras.dart';
 import 'package:van_connect/main.dart';
+import 'package:van_connect/servicos/autenticacao_servico.dart';
+import 'package:van_connect/servicos/endereco_servico.dart';
+import 'package:van_connect/servicos/localizacao_servico.dart';
+import 'package:van_connect/servicos/sessao_salva.dart';
 import 'package:van_connect/tutoriais/conteudo.dart';
 import 'package:van_connect/tutoriais/tutoriais.dart';
 
@@ -14,9 +25,76 @@ void main() {
     await tester.pumpWidget(VanConnectApp(store: store));
     expect(find.text('Sou motorista'), findsOneWidget);
 
+    // Conta (Google simulado) → dados pessoais → van → app do motorista.
     await tester.tap(find.text('Sou motorista'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continuar com Google'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Nome completo'), 'Carlos Lima');
+    await tester.enterText(find.widgetWithText(TextField, 'E-mail'), 'carlos@exemplo.com');
+    await tester.tap(find.text('Continuar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pumpAndSettle();
+    expect(find.text('Seus dados'), findsWidgets);
+
+    await tester.enterText(find.widgetWithText(TextField, 'CPF'), '52998224724');
+    await tester.enterText(find.widgetWithText(TextField, 'RG'), '12.345.678-9');
+    await tester.enterText(find.widgetWithText(TextField, 'WhatsApp'), '11977776666');
+    await tester.ensureVisible(find.text('Continuar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+    expect(find.text('CPF inválido — confira os números'), findsOneWidget, reason: 'dígito verificador errado');
+
+    await tester.enterText(find.widgetWithText(TextField, '529.982.247-24'), '52998224725');
+    await tester.ensureVisible(find.text('Continuar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sua van'), findsWidgets);
+
+    await tester.enterText(find.widgetWithText(TextField, 'Modelo e ano (ex.: Sprinter 2020)'), 'Ducato 2021');
+    await tester.enterText(find.widgetWithText(TextField, 'Placa'), 'abc1d23');
+    await tester.ensureVisible(find.text('Concluir cadastro'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Concluir cadastro'));
     await tester.pump(const Duration(milliseconds: 600));
     expect(find.text('Iniciar viagem'), findsOneWidget);
+    expect(store.nomeMotorista, 'Carlos Lima');
+    expect(store.cpfMotorista, '52998224725');
+    expect(store.veiculo.placa, 'ABC1D23');
+    expect(store.conta?.provedor, ProvedorLogin.google);
+  });
+
+  testWidgets('responsável cria a conta e só entra com o código da van', (tester) async {
+    final store = VanStore();
+    final convite = store.gerarConvite(['a3']);
+    await tester.pumpWidget(VanConnectApp(store: store));
+    await tester.tap(find.text('Sou responsável'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Continuar com Facebook'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Nome completo'), 'Rafael Almeida');
+    await tester.enterText(find.widgetWithText(TextField, 'E-mail'), 'rafael@exemplo.com');
+    await tester.tap(find.text('Continuar'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pumpAndSettle();
+
+    // Sem código não há app: a tela pede o convite ou o VAN-….
+    expect(find.text('Código da van'), findsOneWidget);
+    expect(store.perfil, isNull);
+    await tester.enterText(find.byType(TextField), 'K00-000');
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Convite não encontrado'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), convite.codigo);
+    await tester.tap(find.text('Continuar'));
+    await tester.pumpAndSettle();
+    expect(find.text('Aceitar convite'), findsOneWidget);
+    expect(store.conta?.provedor, ProvedorLogin.facebook);
   });
 
   testWidgets('modo escuro troca a paleta', (tester) async {
@@ -46,7 +124,7 @@ void main() {
 
   test('pedido aprovado vira aluno, entra na rota e no perfil do responsável', () {
     final store = VanStore();
-    store.solicitarVinculo(nomeAluno: 'Pedro Costa', escolaId: 'e1', turno: Turno.manha, endereco: 'Rua Aurora, 45');
+    store.solicitarVinculo(nomeAluno: 'Pedro Costa', escolaInformada: 'colegio horizonte', turno: Turno.manha);
     final pedido = store.solicitacoesDoResponsavel.single;
     final rotas = store.aprovar(pedido);
     expect(rotas, isNotEmpty);
@@ -241,10 +319,12 @@ void main() {
       store.descartarViagem();
     });
 
-    test('bloqueio em dois aparelhos', () {
+    test('bloqueio da mesma van em dois celulares', () {
       final store = VanStore();
-      final t3 = rota(store, 't3'); // Azulzinha, em uso pelo auxiliar na demonstração
-      expect(store.conflitoAoIniciar(t3), contains('Paulo'));
+      final t3 = rota(store, 't3');
+      // A mesma conta com a van em viagem em outro celular.
+      store.execucoesRemotas[t3.veiculoId] = ExecucaoRemota(quem: 'outro celular', desde: DateTime.now(), trajetoNome: 'Tarde · Ida');
+      expect(store.conflitoAoIniciar(t3), contains('outro celular'));
       store.assumirVan(t3.veiculoId);
       expect(store.conflitoAoIniciar(t3), isNull);
 
@@ -268,6 +348,204 @@ void main() {
       store.entrarComConvite(pai);
       expect(store.nomeSessao, 'Rafael Almeida');
       expect(store.podeAgir, isTrue);
+    });
+  });
+
+  group('conta e cadastro', () {
+    const carlos = ContaUsuario(id: 'google-carlos', nome: 'Carlos Lima', email: 'carlos@exemplo.com', provedor: ProvedorLogin.google);
+    const paula = ContaUsuario(id: 'google-paula', nome: 'Paula Reis', email: 'paula@exemplo.com', provedor: ProvedorLogin.google);
+
+    void cadastrar(VanStore store) => store.concluirCadastroMotorista(
+      conta: carlos,
+      nome: 'Carlos Lima',
+      cpf: '52998224725',
+      rg: '123456789',
+      cnh: '',
+      telefone: '(11) 97777-6666',
+      apelidoVan: 'Van amarela',
+      modeloVan: 'Ducato 2021',
+      placa: 'abc1d23',
+      lugares: 16,
+    );
+
+    test('CPF, placa, telefone e máscaras', () {
+      expect(cpfValido('529.982.247-25'), isTrue);
+      expect(cpfValido('529.982.247-24'), isFalse);
+      expect(cpfValido('111.111.111-11'), isFalse);
+      expect(placaValida('abc1d23'), isTrue);
+      expect(placaValida('ABC-1234'), isTrue);
+      expect(placaValida('AB-12345'), isFalse);
+      expect(formatarPlaca('abc1234'), 'ABC-1234');
+      expect(telefoneValido('(11) 98888-1020'), isTrue);
+      expect(telefoneValido('98888-1020'), isFalse);
+      TextEditingValue digitar(TextInputFormatter f, String t) => f.formatEditUpdate(TextEditingValue.empty, TextEditingValue(text: t));
+      expect(digitar(Mascara.cpf, '52998224725').text, '529.982.247-25');
+      expect(digitar(Mascara.telefone, '11988881020').text, '(11) 98888-1020');
+      expect(digitar(Mascara.telefone, '1133334444').text, '(11) 3333-4444');
+      expect(digitar(MascaraPlaca(), 'abc1234').text, 'ABC-1234');
+      expect(digitar(MascaraPlaca(), 'abc1d23').text, 'ABC1D23');
+    });
+
+    test('cadastro do motorista vira a van principal e dá boas-vindas', () {
+      final store = VanStore();
+      cadastrar(store);
+      expect(store.perfil, Perfil.motorista);
+      expect(store.veiculo.id, 'v1', reason: 'as rotas continuam ligadas à van principal');
+      expect(store.veiculo.placa, 'ABC1D23');
+      expect(store.veiculo.capacidade, 16);
+      expect(store.veiculos, hasLength(1), reason: 'nenhuma van de outro motorista');
+      expect(store.trajetos.every((t) => t.veiculoId == store.veiculo.id), isTrue);
+      expect(store.motoristaCadastrado(carlos), isTrue);
+      expect(store.motoristaCadastrado(paula), isFalse);
+      expect(store.avisosMotorista.first.titulo, contains('Carlos'));
+    });
+
+    test('responsável novo espera a aprovação e a conta lembra os filhos', () {
+      final store = VanStore();
+      store.comecarSessaoResponsavel(paula);
+      expect(store.filhosDoResponsavel, isEmpty);
+      store.solicitarVinculo(nomeAluno: 'Bia Reis', escolaInformada: 'colegio horizonte', turno: Turno.manha);
+      store.escolherPerfil(Perfil.responsavel);
+      expect(store.aguardandoAprovacao, isTrue);
+
+      final pedido = store.solicitacoesDoResponsavel.single;
+      expect(pedido.contaId, paula.id);
+      store.aprovar(pedido);
+      expect(store.aguardandoAprovacao, isFalse);
+      final bia = store.filhosDoResponsavel.single;
+      expect(store.aluno(bia).nome, 'Bia Reis');
+
+      store.sair();
+      expect(store.perfil, isNull);
+      store.comecarSessaoResponsavel(paula);
+      expect(store.filhosDoResponsavel, [bia], reason: 'mesma conta, mesmos filhos');
+      store.comecarSessaoResponsavel(carlos);
+      expect(store.filhosDoResponsavel, isEmpty, reason: 'outra conta precisa do próprio código');
+    });
+
+    test('sessão fica salva no aparelho até sair', () async {
+      SharedPreferences.setMockInitialValues({});
+      await SessaoSalva.iniciar();
+      final a = VanStore();
+      cadastrar(a);
+      await SessaoSalva.salvar(a);
+
+      final b = VanStore();
+      SessaoSalva.restaurar(b);
+      expect(b.perfil, Perfil.motorista);
+      expect(b.conta?.email, 'carlos@exemplo.com');
+      expect(b.nomeMotorista, 'Carlos Lima');
+      expect(b.veiculo.placa, 'ABC1D23');
+
+      b.sair();
+      await SessaoSalva.salvar(b);
+      final c = VanStore();
+      SessaoSalva.restaurar(c);
+      expect(c.perfil, isNull);
+    });
+  });
+
+  group('endereço, GPS, Pix e pedidos', () {
+    test('CEP pelo ViaCEP: encontrado, inexistente e sem internet', () async {
+      final servico = EnderecoServico(
+        cliente: MockClient((req) async {
+          final cep = req.url.pathSegments[1];
+          if (cep == '01310100') {
+            final corpo = {
+              'cep': '01310-100',
+              'logradouro': 'Avenida Paulista',
+              'bairro': 'Bela Vista',
+              'localidade': 'São Paulo',
+              'uf': 'SP',
+            };
+            return http.Response.bytes(utf8.encode(jsonEncode(corpo)), 200);
+          }
+          if (cep == '99999999') return http.Response('{"erro": "true"}', 200);
+          throw http.ClientException('sem internet');
+        }),
+      );
+      final d = await servico.buscarCep('01310-100');
+      expect(d.logradouro, 'Avenida Paulista');
+      expect(d.cidade, 'São Paulo');
+      expect(d.uf, 'SP');
+      await expectLater(
+        servico.buscarCep('99999-999'),
+        throwsA(isA<ErroEndereco>().having((e) => e.mensagem, 'mensagem', 'CEP não encontrado.')),
+      );
+      await expectLater(
+        servico.buscarCep('123'),
+        throwsA(isA<ErroEndereco>().having((e) => e.mensagem, 'mensagem', contains('8 números'))),
+      );
+      await expectLater(
+        servico.buscarCep('11111-111'),
+        throwsA(isA<ErroEndereco>().having((e) => e.mensagem, 'mensagem', contains('Sem conexão'))),
+      );
+    });
+
+    test('localização: permissão e GPS desligado no meio da viagem', () async {
+      final gps = LocalizacaoFalsa(SituacaoGps.semPermissao);
+      expect(await gps.verificar(), SituacaoGps.semPermissao);
+      expect(await gps.verificar(pedirPermissao: true), SituacaoGps.pronto);
+
+      final store = VanStore(localizacao: gps);
+      store.iniciarViagem(store.trajetos.firstWhere((t) => t.id == 't1'));
+      expect(store.gpsDesligado, isFalse);
+      gps.mudar(SituacaoGps.desligado);
+      await Future<void>.delayed(Duration.zero);
+      expect(store.gpsDesligado, isTrue, reason: 'o motorista vê o aviso para ligar a localização');
+      gps.mudar(SituacaoGps.pronto);
+      await Future<void>.delayed(Duration.zero);
+      expect(store.gpsDesligado, isFalse);
+      store.dispose();
+    });
+
+    test('chave Pix nova avisa e vai junto na cobrança e no lembrete', () {
+      final store = VanStore();
+      store.salvarChavePix(const ChavePix(tipo: TipoChavePix.email, valor: 'rogerio@pix.com', titular: 'Rogério Nunes'));
+      expect(store.avisosMotorista.first.titulo, 'Nova chave Pix adicionada');
+      store.salvarChavePix(const ChavePix(tipo: TipoChavePix.email, valor: 'rogerio@pix.com', titular: 'Rogério Nunes'));
+      expect(store.avisosMotorista.first.titulo, 'Chave Pix atualizada');
+
+      final atrasadas = store.atrasadas;
+      expect(atrasadas, isNotEmpty, reason: 'a demonstração tem mensalidades atrasadas');
+      expect(store.cobrarAtrasadas(), atrasadas.length);
+
+      store.filhosDoResponsavel
+        ..clear()
+        ..add(atrasadas.first.alunoId);
+      final cobranca = store.avisosResponsavel.firstWhere((a) => a.tipo == TipoAviso.cobranca);
+      expect(cobranca.chavePix, 'rogerio@pix.com');
+      expect(cobranca.texto, contains('rogerio@pix.com'));
+
+      final vencendo = store.vencendoEm(40);
+      expect(store.lembrarAntesDoVencimento(dias: 40), vencendo);
+      expect(store.avisos.where((a) => a.tipo == TipoAviso.lembrete), hasLength(vencendo));
+
+      expect(store.naoLidosResponsavel, greaterThan(0));
+      store.marcarAvisosLidos(motorista: false);
+      expect(store.naoLidosResponsavel, 0);
+    });
+
+    test('pedido com escola errada: motorista corrige e só aprova com o colégio confirmado', () {
+      final store = VanStore();
+      final pedido = store.solicitacoes.firstWhere((x) => x.id == 's1');
+      expect(pedido.escolaId, isNull, reason: '"Colegio Horisonte" não bate com nenhum colégio');
+      expect(() => store.aprovar(pedido), throwsStateError);
+
+      final escola = store.escolas.first;
+      store.atualizarSolicitacao(pedido, nomeAluno: 'Benício Prado Lima', escolaId: escola.id, turno: Turno.tarde);
+      expect(pedido.escolaInformada, 'Colegio Horisonte', reason: 'o que a família escreveu fica registrado');
+      store.aprovar(pedido);
+      final novo = store.alunos.last;
+      expect(novo.nome, 'Benício Prado Lima');
+      expect(novo.escolaId, escola.id);
+      expect(novo.turno, Turno.tarde);
+    });
+
+    test('pedido da família acha o colégio mesmo sem acento', () {
+      final store = VanStore();
+      expect(store.escolaParecida('colegio   HORIZONTE')?.nome, 'Colégio Horizonte');
+      expect(store.escolaParecida('Colégio Horisonte'), isNull);
     });
   });
 }

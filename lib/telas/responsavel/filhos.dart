@@ -37,7 +37,7 @@ class FilhosTela extends StatelessWidget {
                 Linha(
                   inicio: IconeApp(CupertinoIcons.hourglass, cor: p.laranja),
                   titulo: s.nomeAluno,
-                  subtitulo: '${store.escola(s.escolaId).nome} · ${s.turno.rotulo}',
+                  subtitulo: '${s.escolaInformada} · ${s.turno.rotulo}',
                 ),
             ],
           ),

@@ -128,20 +128,24 @@ class _PopupTutorialState extends State<_PopupTutorial> {
                 // Cabeçalho
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 16, 8, 0),
-                  child: Row(children: [
-                    Icon(CupertinoIcons.lightbulb_fill, size: 16, color: p.azul),
-                    const SizedBox(width: 6),
-                    Text('Como usar · ${widget.tutorial.aba}',
-                        style: TextStyle(color: p.azul, fontWeight: FontWeight.w700, fontSize: 13.5)),
-                    const Spacer(),
-                    Text('${_atual + 1}/${_passos.length}', style: TextStyle(color: p.textoSuave, fontSize: 13)),
-                    CupertinoButton(
-                      padding: const EdgeInsets.symmetric(horizontal: 10),
-                      minimumSize: const Size(36, 36),
-                      onPressed: _fechar,
-                      child: Icon(CupertinoIcons.xmark_circle_fill, color: p.cinza.withValues(alpha: 0.6), size: 26),
-                    ),
-                  ]),
+                  child: Row(
+                    children: [
+                      Icon(CupertinoIcons.lightbulb_fill, size: 16, color: p.azul),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Como usar · ${widget.tutorial.aba}',
+                        style: TextStyle(color: p.azul, fontWeight: FontWeight.w700, fontSize: 13.5),
+                      ),
+                      const Spacer(),
+                      Text('${_atual + 1}/${_passos.length}', style: TextStyle(color: p.textoSuave, fontSize: 13)),
+                      CupertinoButton(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        minimumSize: const Size(36, 36),
+                        onPressed: _fechar,
+                        child: Icon(CupertinoIcons.xmark_circle_fill, color: p.cinza.withValues(alpha: 0.6), size: 26),
+                      ),
+                    ],
+                  ),
                 ),
                 // Passos (deslizar para os lados)
                 SizedBox(
@@ -168,10 +172,7 @@ class _PopupTutorialState extends State<_PopupTutorial> {
                           margin: const EdgeInsets.symmetric(horizontal: 3, vertical: 8),
                           width: i == _atual ? 22 : 7,
                           height: 7,
-                          decoration: BoxDecoration(
-                            color: i == _atual ? p.azul : p.preenchimento,
-                            borderRadius: BorderRadius.circular(9),
-                          ),
+                          decoration: BoxDecoration(color: i == _atual ? p.azul : p.preenchimento, borderRadius: BorderRadius.circular(9)),
                         ),
                       ),
                   ],
@@ -205,25 +206,27 @@ class _PopupTutorialState extends State<_PopupTutorial> {
                 // Botões
                 Padding(
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                  child: Row(children: [
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOutCubic,
-                      child: _atual == 0
-                          ? const SizedBox.shrink()
-                          : Padding(
-                              padding: const EdgeInsets.only(right: 10),
-                              child: Botao('Voltar', estilo: EstiloBotao.secundario, aoTocar: () => _irPara(_atual - 1)),
-                            ),
-                    ),
-                    Expanded(
-                      child: Botao(
-                        _ultimo ? 'Entendi' : 'Próximo',
-                        icone: _ultimo ? CupertinoIcons.checkmark_alt : CupertinoIcons.arrow_right,
-                        aoTocar: _ultimo ? _fechar : () => _irPara(_atual + 1),
+                  child: Row(
+                    children: [
+                      AnimatedSize(
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.easeOutCubic,
+                        child: _atual == 0
+                            ? const SizedBox.shrink()
+                            : Padding(
+                                padding: const EdgeInsets.only(right: 10),
+                                child: Botao('Voltar', estilo: EstiloBotao.secundario, aoTocar: () => _irPara(_atual - 1)),
+                              ),
                       ),
-                    ),
-                  ]),
+                      Expanded(
+                        child: Botao(
+                          _ultimo ? 'Entendi' : 'Próximo',
+                          icone: _ultimo ? CupertinoIcons.checkmark_alt : CupertinoIcons.arrow_right,
+                          aoTocar: _ultimo ? _fechar : () => _irPara(_atual + 1),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -259,19 +262,34 @@ class _Passo extends StatelessWidget {
             child: SizedBox(
               width: 116,
               height: 116,
-              child: Stack(alignment: Alignment.center, children: [
-                Container(decoration: BoxDecoration(shape: BoxShape.circle, color: p.suave(p.azul).withValues(alpha: 0.08))),
-                Container(width: 88, height: 88, decoration: BoxDecoration(shape: BoxShape.circle, color: p.suave(p.azul))),
-                IconeApp(passo.icone, cor: p.azul, tamanho: 58, solido: true),
-              ]),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: p.suave(p.azul).withValues(alpha: 0.08)),
+                  ),
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: p.suave(p.azul)),
+                  ),
+                  IconeApp(passo.icone, cor: p.azul, tamanho: 58, solido: true),
+                ],
+              ),
             ),
           ),
           const SizedBox(height: 16),
-          Text(passo.titulo,
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: p.texto)),
+          Text(
+            passo.titulo,
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: -0.5, color: p.texto),
+          ),
           const SizedBox(height: 8),
-          Text(passo.texto, textAlign: TextAlign.center, style: TextStyle(color: p.textoSuave, fontSize: 15, height: 1.35)),
+          Text(
+            passo.texto,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: p.textoSuave, fontSize: 15, height: 1.35),
+          ),
           const SizedBox(height: 14),
           Wrap(
             alignment: WrapAlignment.center,
@@ -289,7 +307,10 @@ class _Passo extends StatelessWidget {
                       borderRadius: BorderRadius.circular(99),
                       border: Border.all(color: p.separador),
                     ),
-                    child: Text(d, style: TextStyle(color: p.texto, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                    child: Text(
+                      d,
+                      style: TextStyle(color: p.texto, fontSize: 12.5, fontWeight: FontWeight.w600),
+                    ),
                   ),
                 ),
             ],

@@ -29,6 +29,8 @@ class AjustesResponsavelTela extends StatelessWidget {
                   children: [
                     Text(store.nomeSessao, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600)),
                     if (store.telefoneSessao.isNotEmpty) Text(store.telefoneSessao, style: TextStyle(color: p.textoSuave)),
+                    if (store.conta != null)
+                      Text('${store.conta!.provedor.rotulo} · ${store.conta!.email}', style: TextStyle(color: p.textoSuave, fontSize: 13)),
                     const SizedBox(height: 4),
                     Selo(
                       store.escopoSessao.rotulo,
@@ -81,7 +83,17 @@ class AjustesResponsavelTela extends StatelessWidget {
               titulo: 'Sair',
               corTitulo: p.vermelho,
               seta: false,
-              aoTocar: () => store.escolherPerfil(null),
+              aoTocar: () async {
+                if (await confirmar(
+                  context,
+                  titulo: 'Sair da conta?',
+                  mensagem: 'Para voltar, é só entrar com a mesma conta.',
+                  acao: 'Sair',
+                  destrutiva: true,
+                )) {
+                  store.sair();
+                }
+              },
             ),
           ],
         ),
@@ -103,6 +115,5 @@ class _ChaveState extends State<_Chave> {
   bool _ligado = true;
 
   @override
-  Widget build(BuildContext context) =>
-      CupertinoSwitch(value: _ligado, activeTrackColor: context.cores.azul, onChanged: (v) => setState(() => _ligado = v));
+  Widget build(BuildContext context) => Chave(valor: _ligado, aoMudar: (v) => setState(() => _ligado = v));
 }

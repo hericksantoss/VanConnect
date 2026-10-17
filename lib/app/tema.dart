@@ -21,6 +21,7 @@ class Paleta extends ThemeExtension<Paleta> {
     required this.vermelho,
     required this.laranja,
     required this.roxo,
+    required this.ambar,
     required this.cinza,
     required this.heroi,
     required this.mapaFundo,
@@ -44,6 +45,9 @@ class Paleta extends ThemeExtension<Paleta> {
   final Color vermelho;
   final Color laranja;
   final Color roxo;
+
+  /// Lembretes e atenção (cobranças a vencer).
+  final Color ambar;
   final Color cinza;
   final List<Color> heroi;
   final Color mapaFundo;
@@ -71,6 +75,7 @@ class Paleta extends ThemeExtension<Paleta> {
     vermelho: Color(0xFFE5484D),
     laranja: Color(0xFF6E86A8),
     roxo: Color(0xFF4C6FFF),
+    ambar: Color(0xFFF59E0B),
     cinza: Color(0xFF8A93A6),
     heroi: [Color(0xFF1E7FD8), Color(0xFF3D9BF0)],
     mapaFundo: Color(0xFFEEF1F5),
@@ -95,6 +100,7 @@ class Paleta extends ThemeExtension<Paleta> {
     vermelho: Color(0xFFFF6369),
     laranja: Color(0xFF8FA3C2),
     roxo: Color(0xFF7B93FF),
+    ambar: Color(0xFFFBBF24),
     cinza: Color(0xFF7D879A),
     heroi: [Color(0xFF1A4F8F), Color(0xFF12305A)],
     mapaFundo: Color(0xFF16181D),
@@ -129,6 +135,7 @@ class Paleta extends ThemeExtension<Paleta> {
       vermelho: c(vermelho, o.vermelho),
       laranja: c(laranja, o.laranja),
       roxo: c(roxo, o.roxo),
+      ambar: c(ambar, o.ambar),
       cinza: c(cinza, o.cinza),
       heroi: [c(heroi[0], o.heroi[0]), c(heroi[1], o.heroi[1])],
       mapaFundo: c(mapaFundo, o.mapaFundo),
@@ -170,12 +177,9 @@ ThemeData criarTema(Brightness brilho) {
     splashFactory: NoSplash.splashFactory,
     highlightColor: Colors.transparent,
     splashColor: Colors.transparent,
-    // Transições laterais de página como no iPhone, inclusive o gesto de voltar.
+    // Cada sistema com a sua transição natural (Android: fade; iPhone: lateral com gesto de voltar).
     pageTransitionsTheme: const PageTransitionsTheme(
-      builders: {
-        TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-      },
+      builders: {TargetPlatform.android: FadeForwardsPageTransitionsBuilder(), TargetPlatform.iOS: CupertinoPageTransitionsBuilder()},
     ),
     cupertinoOverrideTheme: CupertinoThemeData(
       brightness: brilho,
@@ -185,18 +189,16 @@ ThemeData criarTema(Brightness brilho) {
       textTheme: CupertinoTextThemeData(
         primaryColor: p.azul,
         textStyle: TextStyle(color: p.texto, fontSize: 17, letterSpacing: -0.4),
-        navLargeTitleTextStyle: TextStyle(
-          color: p.texto,
-          fontSize: 32,
-          fontWeight: FontWeight.w800,
-          letterSpacing: -0.9,
-        ),
+        navLargeTitleTextStyle: TextStyle(color: p.texto, fontSize: 32, fontWeight: FontWeight.w800, letterSpacing: -0.9),
         navTitleTextStyle: TextStyle(color: p.texto, fontSize: 17, fontWeight: FontWeight.w600, letterSpacing: -0.4),
       ),
     ),
-    textTheme: Typography.material2021(platform: TargetPlatform.iOS).black.apply(
-          bodyColor: p.texto,
-          displayColor: p.texto,
+    textTheme: Typography.material2021(platform: TargetPlatform.iOS).black
+        .apply(bodyColor: p.texto, displayColor: p.texto)
+        .copyWith(
+          // Título grande das páginas (SliverAppBar.large) e o título encolhido.
+          headlineMedium: TextStyle(fontSize: 30, fontWeight: FontWeight.w800, letterSpacing: -0.8, color: p.texto),
+          titleLarge: TextStyle(fontSize: 19, fontWeight: FontWeight.w700, letterSpacing: -0.3, color: p.texto),
         ),
     iconTheme: IconThemeData(color: p.texto),
     dividerTheme: DividerThemeData(color: p.separador, space: 0.5, thickness: 0.5),
@@ -235,8 +237,7 @@ class RolagemIOS extends MaterialScrollBehavior {
   const RolagemIOS();
 
   @override
-  ScrollPhysics getScrollPhysics(BuildContext context) =>
-      const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
+  ScrollPhysics getScrollPhysics(BuildContext context) => const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
 
   @override
   Widget buildOverscrollIndicator(BuildContext context, Widget child, ScrollableDetails details) => child;

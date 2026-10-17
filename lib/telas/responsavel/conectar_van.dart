@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../app/formatos.dart';
+import '../comum/endereco_tela.dart';
 import '../../app/tema.dart';
 import '../../componentes/ui.dart';
 import '../../dominio/modelos.dart';
@@ -12,7 +13,11 @@ import '../../estado/van_store.dart';
 /// - Convite da família (ex.: K7P-2QX): já traz filho e rota → só aceitar.
 /// - Código geral do motorista (VAN-…): código → "esta é a sua van?" → dados do filho → aprovação.
 class ConectarVan extends StatefulWidget {
-  const ConectarVan({super.key});
+  const ConectarVan({super.key, this.entrada = false});
+
+  /// Na entrada do app (logo depois de criar a conta): o código é obrigatório
+  /// e, ao terminar, abre o app do responsável em vez de fechar a folha.
+  final bool entrada;
 
   @override
   State<ConectarVan> createState() => _ConectarVanState();
@@ -22,8 +27,8 @@ class _ConectarVanState extends State<ConectarVan> {
   int _passo = 0;
   final _codigo = TextEditingController();
   final _nome = TextEditingController();
-  final _endereco = TextEditingController(text: 'Rua Aurora, 45');
-  String _escolaId = 'e1';
+  final _escola = TextEditingController();
+  Endereco? _endereco;
   Turno _turno = Turno.manha;
   String? _erro;
   Convite? _convite;
@@ -35,7 +40,7 @@ class _ConectarVanState extends State<ConectarVan> {
   void dispose() {
     _codigo.dispose();
     _nome.dispose();
-    _endereco.dispose();
+    _escola.dispose();
     super.dispose();
   }
 
@@ -119,14 +124,16 @@ class _ConectarVanState extends State<ConectarVan> {
           children: [
             Center(child: IconeApp(CupertinoIcons.qrcode, cor: p.azul, tamanho: 64)),
             const SizedBox(height: 16),
-            const Text(
-              'Conectar à van',
+            Text(
+              widget.entrada ? 'Código da van' : 'Conectar à van',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.6),
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: -0.6),
             ),
             const SizedBox(height: 6),
             Text(
-              'Digite o código do convite que o motorista enviou pelo WhatsApp.',
+              widget.entrada
+                  ? 'Para entrar, digite o código que o motorista enviou pelo WhatsApp. Sem ele não dá para acessar o app.'
+                  : 'Digite o código do convite que o motorista enviou pelo WhatsApp.',
               textAlign: TextAlign.center,
               style: TextStyle(color: p.textoSuave),
             ),
@@ -162,7 +169,7 @@ class _ConectarVanState extends State<ConectarVan> {
           ],
         );
       case _passoConvite:
-        return _TelaConvite(convite: _convite!, aoVoltar: () => setState(() => _passo = 0));
+        return _TelaConvite(convite: _convite!, entrada: widget.entrada, aoVoltar: () => setState(() => _passo = 0));
       case 1:
         final v = store.veiculo;
         return Column(
@@ -201,23 +208,9 @@ class _ConectarVanState extends State<ConectarVan> {
           ],
         );
       default:
-        final valido = _nome.text.trim().isNotEmpty && _endereco.text.trim().isNotEmpty;
-        Widget segmento<T extends Object>(T valor, Map<T, String> opcoes, ValueChanged<T> aoMudar) => SizedBox(
-          width: double.infinity,
-          child: CupertinoSlidingSegmentedControl<T>(
-            groupValue: valor,
-            backgroundColor: p.preenchimento,
-            thumbColor: p.escuro ? p.elevado : Colors.white,
-            onValueChanged: (x) => setState(() => aoMudar(x ?? valor)),
-            children: {
-              for (final e in opcoes.entries)
-                e.key: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  child: Text(e.value, overflow: TextOverflow.ellipsis),
-                ),
-            },
-          ),
-        );
+        final valido = _nome.text.trim().isNotEmpty && _escola.text.trim().isNotEmpty && _endereco != null;
+        Widget segmento<T extends Object>(T valor, Map<T, String> opcoes, ValueChanged<T> aoMudar) =>
+            Segmentos<T>(valor: valor, opcoes: opcoes, aoMudar: (x) => setState(() => aoMudar(x)));
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -240,14 +233,28 @@ class _ConectarVanState extends State<ConectarVan> {
               decoration: const InputDecoration(hintText: 'Nome da criança', prefixIcon: Icon(CupertinoIcons.person_fill, size: 20)),
             ),
             const SizedBox(height: 10),
-            segmento<String>(_escolaId, {for (final e in store.escolas) e.id: e.nome}, (x) => _escolaId = x),
+            // O responsável não vê as escolas do motorista: escreve o nome e o motorista confirma.
+            TextField(
+              controller: _escola,
+              textCapitalization: TextCapitalization.words,
+              onChanged: (_) => setState(() {}),
+              decoration: const InputDecoration(hintText: 'Nome da escola', prefixIcon: Icon(Icons.school_rounded, size: 20)),
+            ),
             const SizedBox(height: 10),
             segmento<Turno>(_turno, const {Turno.manha: 'Manhã', Turno.tarde: 'Tarde'}, (x) => _turno = x),
             const SizedBox(height: 10),
-            TextField(
-              controller: _endereco,
-              onChanged: (_) => setState(() {}),
-              decoration: const InputDecoration(hintText: 'Endereço de embarque', prefixIcon: Icon(CupertinoIcons.house_fill, size: 20)),
+            CartaoEndereco(
+              endereco: _endereco,
+              rotulo: 'Endereço de embarque',
+              aoTocar: () async {
+                final e = await escolherEndereco(
+                  context,
+                  inicial: _endereco,
+                  titulo: 'Endereço de embarque',
+                  ajuda: 'Informe o CEP de casa e confirme no mapa onde a van deve parar.',
+                );
+                if (e != null) setState(() => _endereco = e);
+              },
             ),
             const SizedBox(height: 20),
             Botao(
@@ -257,10 +264,16 @@ class _ConectarVanState extends State<ConectarVan> {
                   ? () {
                       store.solicitarVinculo(
                         nomeAluno: _nome.text.trim(),
-                        escolaId: _escolaId,
+                        escolaInformada: _escola.text.trim(),
                         turno: _turno,
-                        endereco: _endereco.text.trim(),
+                        endereco: _endereco,
                       );
+                      if (widget.entrada) {
+                        // Entra no app já na tela de "aguardando aprovação".
+                        Navigator.of(context).popUntil((r) => r.isFirst);
+                        store.escolherPerfil(Perfil.responsavel);
+                        return;
+                      }
                       Navigator.pop(context);
                       avisar(
                         context,
@@ -279,9 +292,10 @@ class _ConectarVanState extends State<ConectarVan> {
 
 /// O que a família vê ao abrir o convite: tudo pronto, só aceitar.
 class _TelaConvite extends StatelessWidget {
-  const _TelaConvite({required this.convite, required this.aoVoltar});
+  const _TelaConvite({required this.convite, required this.aoVoltar, this.entrada = false});
 
   final Convite convite;
+  final bool entrada;
   final VoidCallback aoVoltar;
 
   @override
@@ -325,6 +339,12 @@ class _TelaConvite extends StatelessWidget {
           icone: CupertinoIcons.checkmark_alt,
           aoTocar: () {
             HapticFeedback.mediumImpact();
+            if (entrada) {
+              // O convite libera na hora: entra no app com os filhos do convite.
+              Navigator.of(context).popUntil((r) => r.isFirst);
+              store.entrarComConvite(convite);
+              return;
+            }
             final filhos = store.aceitarConvite(convite);
             Navigator.pop(context);
             avisar(

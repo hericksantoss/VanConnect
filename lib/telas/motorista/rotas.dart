@@ -5,6 +5,7 @@ import '../../app/tema.dart';
 import '../../componentes/ui.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/van_store.dart';
+import '../comum/escolas.dart';
 import 'rota.dart';
 
 class RotasTela extends StatelessWidget {
@@ -36,7 +37,8 @@ class RotasTela extends StatelessWidget {
                       tamanho: 36,
                     ),
                     titulo: '${t.sentido.rotulo} · ${horario(t.saida)}',
-                    subtitulo: '${t.escolaIds.map((id) => store.escola(id).nome).join(', ')}\n'
+                    subtitulo:
+                        '${t.escolaIds.map((id) => store.escola(id).nome).join(', ')}\n'
                         '${store.alunosDo(t).length} alunos · ${store.km(t).toStringAsFixed(1)} km · ${store.veiculoDe(t).apelido}',
                     fim: store.execucoesRemotas.containsKey(t.veiculoId)
                         ? Selo('Em uso', cor: p.laranja, icone: CupertinoIcons.antenna_radiowaves_left_right)
@@ -91,19 +93,28 @@ class _NovaRotaState extends State<_NovaRota> {
           children: [
             const Text('Nova rota', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
             const SizedBox(height: 16),
-            Segmentos<Turno>(valor: _turno, opcoes: const {Turno.manha: 'Manhã', Turno.tarde: 'Tarde', Turno.integral: 'Integral'}, aoMudar: (v) => setState(() => _turno = v)),
+            Segmentos<Turno>(
+              valor: _turno,
+              opcoes: const {Turno.manha: 'Manhã', Turno.tarde: 'Tarde', Turno.integral: 'Integral'},
+              aoMudar: (v) => setState(() => _turno = v),
+            ),
             const SizedBox(height: 10),
-            Segmentos<Sentido>(valor: _sentido, opcoes: const {Sentido.ida: 'Ida (casa → escola)', Sentido.volta: 'Volta'}, aoMudar: (v) => setState(() => _sentido = v)),
+            Segmentos<Sentido>(
+              valor: _sentido,
+              opcoes: const {Sentido.ida: 'Ida (casa → escola)', Sentido.volta: 'Volta'},
+              aoMudar: (v) => setState(() => _sentido = v),
+            ),
             Secao(
               filhos: [
                 Linha(
                   inicio: const IconeApp(CupertinoIcons.book_fill, cor: Paleta.azulMarca),
-                  titulo: 'Escola',
+                  titulo: 'Colégio',
+                  subtitulo: store.escola(_escolaId!).endereco,
                   fim: Text(store.escola(_escolaId!).nome, style: TextStyle(color: p.textoSuave)),
+                  // Selecionar da lista ou cadastrar um colégio novo (com CEP e mapa).
                   aoTocar: () async {
-                    final e = await escolherAcao<String>(context,
-                        titulo: 'Escola', opcoes: [for (final e in store.escolas) OpcaoAcao(e.nome, e.id)]);
-                    if (e != null) setState(() => _escolaId = e);
+                    final e = await selecionarEscola(context, selecionadaId: _escolaId);
+                    if (e != null) setState(() => _escolaId = e.id);
                   },
                 ),
                 Linha(
@@ -118,11 +129,15 @@ class _NovaRotaState extends State<_NovaRota> {
               ],
             ),
             const SizedBox(height: 20),
-            Botao('Criar rota', icone: CupertinoIcons.checkmark_alt, aoTocar: () {
-              final t = store.criarTrajeto(turno: _turno, sentido: _sentido, saida: _saida, escolaId: _escolaId!);
-              Navigator.pop(context);
-              avisar(context, 'Rota ${t.nome} criada com ${t.alunoIds.length} aluno(s)');
-            }),
+            Botao(
+              'Criar rota',
+              icone: CupertinoIcons.checkmark_alt,
+              aoTocar: () {
+                final t = store.criarTrajeto(turno: _turno, sentido: _sentido, saida: _saida, escolaId: _escolaId!);
+                Navigator.pop(context);
+                avisar(context, 'Rota ${t.nome} criada com ${t.alunoIds.length} aluno(s)');
+              },
+            ),
           ],
         ),
       ),

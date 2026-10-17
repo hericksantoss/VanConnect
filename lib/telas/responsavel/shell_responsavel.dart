@@ -6,6 +6,7 @@ import '../../componentes/ui.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/van_store.dart';
 import '../../tutoriais/tutoriais.dart';
+import 'aguardando.dart';
 import 'ajustes_responsavel.dart';
 import 'ausencias.dart';
 import 'filhos.dart';
@@ -33,6 +34,8 @@ class _ShellResponsavelState extends State<ShellResponsavel> {
   @override
   Widget build(BuildContext context) {
     final store = VanScope.of(context);
+    // Conta nova: só entra no app depois que o motorista libera (ou com convite).
+    if (store.filhosDoResponsavel.isEmpty) return const AguardandoAprovacaoTela();
     final p = context.cores;
     final hoje = DateTime.now();
     final abertas = store.filhosDoResponsavel

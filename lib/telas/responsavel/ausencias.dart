@@ -6,6 +6,7 @@ import '../../app/tema.dart';
 import '../../componentes/ui.dart';
 import '../../dominio/modelos.dart';
 import '../../estado/van_store.dart';
+import '../comum/avisos.dart';
 
 Future<void> avisarAusencia(BuildContext context, {String? alunoId}) => abrirFolha(context, _FolhaAusencia(alunoId: alunoId));
 
@@ -81,6 +82,22 @@ class AvisosTela extends StatelessWidget {
                 Icon(CupertinoIcons.chevron_right, color: p.cinza, size: 18),
               ],
             ),
+          ),
+        if (store.avisosResponsavel.isNotEmpty)
+          Secao(
+            titulo: 'Recados do motorista',
+            rodape: store.naoLidosResponsavel > 0 ? null : 'Tudo lido.',
+            recuo: 62,
+            filhos: [
+              for (final a in store.avisosResponsavel.take(8)) LinhaAviso(aviso: a),
+              if (store.naoLidosResponsavel > 0)
+                Linha(
+                  titulo: 'Marcar todos como lidos',
+                  corTitulo: p.azul,
+                  seta: false,
+                  aoTocar: () => store.marcarAvisosLidos(motorista: false),
+                ),
+            ],
           ),
         if (feed.isNotEmpty)
           Secao(
@@ -186,19 +203,13 @@ class _FolhaAusenciaState extends State<_FolhaAusencia> {
   }
 
   Widget _segmento<T extends Object>(T valor, Map<T, String> opcoes, ValueChanged<T> aoMudar) {
-    final p = context.cores;
-    return SizedBox(
-      width: double.infinity,
-      child: CupertinoSlidingSegmentedControl<T>(
-        groupValue: valor,
-        backgroundColor: p.preenchimento,
-        thumbColor: p.escuro ? p.elevado : Colors.white,
-        onValueChanged: (v) {
-          aoMudar(v ?? valor);
-          setState(() {});
-        },
-        children: {for (final e in opcoes.entries) e.key: Padding(padding: const EdgeInsets.symmetric(vertical: 8), child: Text(e.value))},
-      ),
+    return Segmentos<T>(
+      valor: valor,
+      opcoes: opcoes,
+      aoMudar: (v) {
+        aoMudar(v);
+        setState(() {});
+      },
     );
   }
 
